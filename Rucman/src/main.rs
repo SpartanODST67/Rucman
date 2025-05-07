@@ -53,6 +53,17 @@ impl Grid {
             grid,
         }
     }
+
+    fn is_valid_pos(&self, pos: &Point) -> bool {
+        let col: usize = pos.0.try_into().unwrap();
+        let row: usize = pos.1.try_into().unwrap();
+        
+        if col >= self.width || row >= self.height { return false; }
+        match self.grid[row][col] {
+            GridPoint::Wall => false,
+            _ => true,
+        }
+    }
 }
 
 fn main() {
@@ -68,5 +79,25 @@ fn print_screen(grid: &Grid) {
             row_string.push(char::from(*col));
         }
         print!("{row_string}\n");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn valid_pos() {
+        let grid = Grid::new();
+        assert!(grid.is_valid_pos(&Point((grid.width - 2) as u32, (grid.height - 2) as u32)));
+        assert!(grid.is_valid_pos(&Point(1, 1)));
+    }
+
+    #[test]
+    fn invalid_pos() {
+        let grid = Grid::new();
+        assert!(!grid.is_valid_pos(&Point(0, 0)));
+        assert!(!grid.is_valid_pos(&Point((grid.width) as u32, (grid.height) as u32)));
+        assert!(!grid.is_valid_pos(&Point((grid.width - 1) as u32, (grid.height - 1) as u32)));
     }
 }
