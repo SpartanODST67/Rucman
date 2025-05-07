@@ -45,6 +45,7 @@ struct Grid {
     grid: Vec<Vec<GridPoint>>,
     width: usize,
     height: usize,
+    pellets_left: u32,
 }
 
 impl Grid {
@@ -61,6 +62,7 @@ impl Grid {
             width: grid[0].len(),
             height: grid.len(),
             grid,
+            pellets_left: 5
         }
     }
 
@@ -84,7 +86,11 @@ impl Grid {
         if col >= self.width || row >= self.height { return Err(GridPointError::BadPosError); }
         let res = {
             match self.grid[row][col] {
-                GridPoint::Pellet | GridPoint::PowerPellet | GridPoint::Empty => { Ok(self.grid[row][col]) },
+                GridPoint::Pellet | GridPoint::PowerPellet  => {
+                        self.pellets_left -= 1;
+                        Ok(self.grid[row][col]) 
+                    },
+                GridPoint::Empty => Ok(GridPoint::Empty),
                 GridPoint::Wall => {Err(GridPointError::InconsumableError(self.grid[row][col]))},
             }
         };
@@ -138,7 +144,9 @@ mod tests {
     fn valid_eat() {
         let mut grid = Grid::new();
         assert_eq!(grid.eat(&Point(1, 1)), Ok(GridPoint::Pellet));
+        assert_eq!(grid.pellets_left, 4);
         assert_eq!(grid.eat(&Point(2, 1)), Ok(GridPoint::PowerPellet));
+        assert_eq!(grid.pellets_left, 3);
         assert_eq!(grid.eat(&Point(1, 3)), Ok(GridPoint::Empty));
     }
 
@@ -149,8 +157,10 @@ mod tests {
         let mut grid = Grid::new();
         let _ = grid.eat(&Point(1, 1));
         assert_eq!(grid.eat(&Point(1, 1)), Ok(GridPoint::Empty));
+        assert_eq!(grid.pellets_left, 4);
         let _ = grid.eat(&Point(2, 1));
         assert_eq!(grid.eat(&Point(2, 1)), Ok(GridPoint::Empty));
+        assert_eq!(grid.pellets_left, 3);
         let _ = grid.eat(&Point(1, 3));
         assert_eq!(grid.eat(&Point(1, 3)), Ok(GridPoint::Empty));
     }
