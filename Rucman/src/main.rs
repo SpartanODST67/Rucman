@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration, io};
 
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
@@ -13,7 +13,7 @@ mod character;
 use character::{Character, CharacterData};
 
 fn main() {
-    let grid = Grid::new();
+    let mut grid = Grid::new();
 
     let mut rucman = CharacterData::new(Character::Rucman);
     let mut ghosts = vec![
@@ -29,18 +29,43 @@ fn main() {
     ghosts[3].set_position(Vector2(0, 0));
     rucman.set_position(Vector2(1, 1));
 
-    for _ in 0..10 {
+    let mut lives: u8 = 3;
+    let mut score: u32 = 0;
+
+    while lives > 0 {
         print_screen(&grid, &rucman, &ghosts);
-        rucman.set_position(rucman.calculate_facing_position());
-        rucman.set_direction(match rucman.get_direction() {
-            Direction::Up(_) => Direction::right(), 
-            Direction::Right(_) => Direction::down(), 
-            Direction::Down(_) => Direction::left(), 
-            Direction::Left(_) => Direction::up(), 
-        });
+        
+        let next_dir = take_input();
+        match next_dir {
+            Some(dir) => rucman.set_direction(dir),
+            None => {},
+        }
+        dbg!(rucman.get_direction());
+
+        let next_pos = rucman.calculate_facing_position();
+        if grid.is_valid_pos(&next_pos) { rucman.set_position(next_pos) };
+
+        let eatten = grid.eat(&rucman.get_position());
+        match eatten {
+            Ok(pellet) => {
+                match pellet {
+                    GridPoint::Pellet => score += 5,
+                    GridPoint::PowerPellet => {
+                        score += 10;
+                    },
+                    _ => {},
+                }
+            },
+            Err(invalid) => {
+                match invalid {
+                    _ => {},
+                }
+            },
+        }
+        dbg!(score);
+
         sleep(Duration::new(0, 500_000_000));
-    }    
-    print_screen(&grid, &rucman, &ghosts);
+    }
 }
 
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>) {
@@ -67,5 +92,22 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     for row in pass_one {
         let row_string: String = row.iter().collect();
         println!("{row_string}");
+    }
+}
+
+fn take_input() -> Option<Direction> {
+    let mut input = String::new();
+    let read = io::stdin().read_line(&mut input);
+    match read {
+        Ok(_) => {
+            match input.trim() {
+                "w" => Some(Direction::up()),
+                "a" => Some(Direction::left()),
+                "s" => Some(Direction::down()),
+                "d" => Some(Direction::right()),
+                _ => None,
+            }
+        }
+        Err(_) => None,
     }
 }
