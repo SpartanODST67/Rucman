@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
 
@@ -36,11 +38,14 @@ fn main() {
             Direction::Down(_) => Direction::left(), 
             Direction::Left(_) => Direction::up(), 
         });
+        sleep(Duration::new(0, 500_000_000));
     }    
     print_screen(&grid, &rucman, &ghosts);
 }
 
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>) {
+    clearscreen::clear().unwrap();
+    
     let mut pass_one = Vec::new();
 
     for row in grid.get_maze() {
