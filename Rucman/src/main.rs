@@ -91,25 +91,54 @@ fn main() {
     let grid = Grid::new();
 
     let mut rucman = CharacterData::new(Character::Rucman);
+    let mut ghosts = vec![
+        CharacterData::new(Character::Inky),
+        CharacterData::new(Character::Blinky),
+        CharacterData::new(Character::Pinky),
+        CharacterData::new(Character::Clyde),
+    ];
+
+    ghosts[0].set_position(Vector2(1, 1));
+    ghosts[1].set_position(Vector2(1, 2));
+    ghosts[2].set_position(Vector2(1, 3));
+    ghosts[3].set_position(Vector2(2, 1));
+    rucman.set_position(Vector2(2, 2));
+
     for _ in 0..10 {
-        println!("{}: {:?}, {:?}", char::from(rucman.clone()), rucman.facing_direction, rucman.position);
+        print_screen(&grid, &rucman, &ghosts);
         rucman.set_position(rucman.calculate_facing_position());
         rucman.set_direction(match rucman.facing_direction {
-            Direction::Up(_) => Direction::right(),
-            Direction::Right(_) => Direction::down(),
-            Direction::Down(_) => Direction::left(),
-            Direction::Left(_) => Direction::up(),
+            Direction::Up(_) => Direction::right(), 
+            Direction::Right(_) => Direction::down(), 
+            Direction::Down(_) => Direction::left(), 
+            Direction::Left(_) => Direction::up(), 
         });
-    }
+    }    
+    print_screen(&grid, &rucman, &ghosts);
 }
 
-fn print_screen(grid: &Grid) {
+fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>) {
+    let mut pass_one = Vec::new();
+
     for row in grid.get_grid() {
-        let mut row_string = String::from("");
+        let mut row_collect = Vec::new();
         for col in row {
-            row_string.push(char::from(*col));
+            row_collect.push(char::from(*col));
         }
-        print!("{row_string}\n");
+        pass_one.push(row_collect);
+    }
+
+    for ghost in ghosts {
+        let pos = ghost.position;
+        pass_one[pos.1 as usize][pos.0 as usize] = char::from(ghost.character);
+    }
+
+    let pos = rucman.position;
+    pass_one[pos.1 as usize][pos.0 as usize] = char::from(rucman.character);
+    
+    for row in pass_one {
+        let row_string: String = row.iter().collect();
+        println!("{row_string}");
     }
 }
 
