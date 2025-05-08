@@ -1,1 +1,1 @@
-pub struct Point(pub u32, pub u32);
+pub struct Vector2(pub i32, pub i32);

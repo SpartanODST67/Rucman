@@ -1,5 +1,5 @@
 pub mod grid {
-    use crate::point::Point;
+    use crate::point::Vector2;
 
     /// Represents an entity that is a part of the grid.
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,11 +71,17 @@ pub mod grid {
         }
 
         /// Check to see if provided point is a valid position for an entity to be on.
-        pub fn is_valid_pos(&self, pos: &Point) -> bool {
-            let col: usize = pos.0.try_into().unwrap();
-            let row: usize = pos.1.try_into().unwrap();
+        pub fn is_valid_pos(&self, pos: &Vector2) -> bool {
+            let col: i32 = pos.0;
+            let row: i32 = pos.1;
             
+            if col < 0 || row < 0 { return false; }
+
+            let col: usize = col.try_into().unwrap();
+            let row: usize = row.try_into().unwrap();
+
             if col >= self.width || row >= self.height { return false; }
+
             match self.grid[row][col] {
                 GridPoint::Wall => false,
                 _ => true,
@@ -83,11 +89,17 @@ pub mod grid {
         }
 
         /// Retrieves the GridPoint stored at the provided point and replaces it with empty.
-        pub fn eat(&mut self, pos: &Point) -> Result<GridPoint, GridPointError> {
-            let col: usize = pos.0.try_into().unwrap();
-            let row: usize = pos.1.try_into().unwrap();
+        pub fn eat(&mut self, pos: &Vector2) -> Result<GridPoint, GridPointError> {            
+            let col: i32 = pos.0;
+            let row: i32 = pos.1;
+            
+            if col < 0 || row < 0 { return Err(GridPointError::BadPosError); }
+
+            let col: usize = col.try_into().unwrap();
+            let row: usize = row.try_into().unwrap();
 
             if col >= self.width || row >= self.height { return Err(GridPointError::BadPosError); }
+
             let res = {
                 match self.grid[row][col] {
                     GridPoint::Pellet | GridPoint::PowerPellet  => {
@@ -113,17 +125,18 @@ pub mod grid {
         #[test]
         fn valid_pos() {
             let grid = Grid::new();
-            assert!(grid.is_valid_pos(&Point((grid.width - 2) as u32, (grid.height - 2) as u32)));
-            assert!(grid.is_valid_pos(&Point(1, 1)));
+            assert!(grid.is_valid_pos(&Vector2((grid.width - 2) as i32, (grid.height - 2) as i32)));
+            assert!(grid.is_valid_pos(&Vector2(1, 1)));
         }
 
         /// Tests if the grid can accurately return false on invalid positions.
         #[test]
         fn invalid_pos() {
             let grid = Grid::new();
-            assert!(!grid.is_valid_pos(&Point(0, 0)));
-            assert!(!grid.is_valid_pos(&Point((grid.width) as u32, (grid.height) as u32)));
-            assert!(!grid.is_valid_pos(&Point((grid.width - 1) as u32, (grid.height - 1) as u32)));
+            assert!(!grid.is_valid_pos(&Vector2(0, 0)));
+            assert!(!grid.is_valid_pos(&Vector2((grid.width) as i32, (grid.height) as i32)));
+            assert!(!grid.is_valid_pos(&Vector2((grid.width - 1) as i32, (grid.height - 1) as i32)));
+            assert!(!grid.is_valid_pos(&Vector2(-1, -1)));
         }
 
         /// Tests if the grid can accurately return a Grid point on valid positions.
@@ -131,11 +144,11 @@ pub mod grid {
         #[test]
         fn valid_eat() {
             let mut grid = Grid::new();
-            assert_eq!(grid.eat(&Point(1, 1)), Ok(GridPoint::Pellet));
+            assert_eq!(grid.eat(&Vector2(1, 1)), Ok(GridPoint::Pellet));
             assert_eq!(grid.pellets_left, 4);
-            assert_eq!(grid.eat(&Point(2, 1)), Ok(GridPoint::PowerPellet));
+            assert_eq!(grid.eat(&Vector2(2, 1)), Ok(GridPoint::PowerPellet));
             assert_eq!(grid.pellets_left, 3);
-            assert_eq!(grid.eat(&Point(1, 3)), Ok(GridPoint::Empty));
+            assert_eq!(grid.eat(&Vector2(1, 3)), Ok(GridPoint::Empty));
         }
 
         /// Tests if the grid replaces previously eatten points with Empty.
@@ -143,23 +156,24 @@ pub mod grid {
         #[test]
         fn check_eat_empty() {
             let mut grid = Grid::new();
-            let _ = grid.eat(&Point(1, 1));
-            assert_eq!(grid.eat(&Point(1, 1)), Ok(GridPoint::Empty));
+            let _ = grid.eat(&Vector2(1, 1));
+            assert_eq!(grid.eat(&Vector2(1, 1)), Ok(GridPoint::Empty));
             assert_eq!(grid.pellets_left, 4);
-            let _ = grid.eat(&Point(2, 1));
-            assert_eq!(grid.eat(&Point(2, 1)), Ok(GridPoint::Empty));
+            let _ = grid.eat(&Vector2(2, 1));
+            assert_eq!(grid.eat(&Vector2(2, 1)), Ok(GridPoint::Empty));
             assert_eq!(grid.pellets_left, 3);
-            let _ = grid.eat(&Point(1, 3));
-            assert_eq!(grid.eat(&Point(1, 3)), Ok(GridPoint::Empty));
+            let _ = grid.eat(&Vector2(1, 3));
+            assert_eq!(grid.eat(&Vector2(1, 3)), Ok(GridPoint::Empty));
         }
 
         /// Tests if the grid can accurately return an error on invalid eat positions.
         #[test]
         fn invalid_eat() {
             let mut grid = Grid::new();
-            assert_eq!(grid.eat(&Point(0, 0)), Err(GridPointError::InconsumableError(GridPoint::Wall)));
-            assert_eq!(grid.eat(&Point((grid.width) as u32, (grid.height) as u32)), Err(GridPointError::BadPosError));
-            assert_eq!(grid.eat(&Point((grid.width - 1) as u32, (grid.height - 1) as u32)), Err(GridPointError::InconsumableError(GridPoint::Wall)));
+            assert_eq!(grid.eat(&Vector2(0, 0)), Err(GridPointError::InconsumableError(GridPoint::Wall)));
+            assert_eq!(grid.eat(&Vector2((grid.width) as i32, (grid.height) as i32)), Err(GridPointError::BadPosError));
+            assert_eq!(grid.eat(&Vector2(-1, -1)), Err(GridPointError::BadPosError));
+            assert_eq!(grid.eat(&Vector2((grid.width - 1) as i32, (grid.height - 1) as i32)), Err(GridPointError::InconsumableError(GridPoint::Wall)));
         }
     }
 }
