@@ -21,11 +21,11 @@ fn main() {
         CharacterData::new(Character::Clyde),
     ];
 
-    ghosts[0].set_position(Vector2(1, 1));
-    ghosts[1].set_position(Vector2(1, 2));
-    ghosts[2].set_position(Vector2(1, 3));
-    ghosts[3].set_position(Vector2(2, 1));
-    rucman.set_position(Vector2(2, 2));
+    ghosts[0].set_position(Vector2(0, 0));
+    ghosts[1].set_position(Vector2(0, 0));
+    ghosts[2].set_position(Vector2(0, 0));
+    ghosts[3].set_position(Vector2(0, 0));
+    rucman.set_position(Vector2(1, 1));
 
     for _ in 0..10 {
         print_screen(&grid, &rucman, &ghosts);
@@ -43,7 +43,7 @@ fn main() {
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>) {
     let mut pass_one = Vec::new();
 
-    for row in grid.get_grid() {
+    for row in grid.get_maze() {
         let mut row_collect = Vec::new();
         for col in row {
             row_collect.push(char::from(*col));

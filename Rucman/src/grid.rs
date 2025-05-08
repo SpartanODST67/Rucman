@@ -39,10 +39,22 @@ pub mod grid {
         }
     }
 
+    impl From<char> for GridPoint {
+        fn from(input: char) -> GridPoint {
+            match input {
+                '.' => GridPoint::Pellet,
+                '*' => GridPoint::PowerPellet,
+                '█' => GridPoint::Wall,
+                ' ' => GridPoint::Empty,
+                _ => panic!("Cannot convert {} to a grid point", input),
+            }
+        }
+    }
+
     /// Stores the grid and its meta data.
     #[derive(Debug)]
     pub struct Grid {
-        grid: Vec<Vec<GridPoint>>,
+        maze: Vec<Vec<GridPoint>>,
         width: usize,
         height: usize,
         pellets_left: u32,
@@ -50,24 +62,42 @@ pub mod grid {
 
     impl Grid {
         pub fn new() -> Self {
-            let grid = vec![
-                vec![GridPoint::Wall, GridPoint::Wall, GridPoint::Wall, GridPoint::Wall, GridPoint::Wall],
-                vec![GridPoint::Wall, GridPoint::Pellet, GridPoint::PowerPellet, GridPoint::Pellet, GridPoint::Wall],
-                vec![GridPoint::Wall, GridPoint::Pellet, GridPoint::Empty, GridPoint::Pellet, GridPoint::Wall],
-                vec![GridPoint::Wall, GridPoint::Empty, GridPoint::Empty, GridPoint::Empty, GridPoint::Wall],
-                vec![GridPoint::Wall, GridPoint::Wall, GridPoint::Wall, GridPoint::Wall, GridPoint::Wall],
+            let maze = vec![
+                vec!['█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█'],
+                vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','█','.','.','.','.','.','.','.','.','.','.','.','.','█'],
+                vec!['█','.','█','█','█','█','.','█','█','█','█','█','.','█','.','█','█','█','█','█','.','█','█','█','█','.','█'],
+                vec!['█','*','█','█','█','█','.','█','█','█','█','█','.','█','.','█','█','█','█','█','.','█','█','█','█','*','█'],
+                vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','█'],
+                vec!['█','.','█','█','█','█','.','█','█','.','█','█','█','█','█','█','█','.','█','█','.','█','█','█','█','.','█'],
+                vec!['█','.','█','█','█','█','.','█','█','.','█','█','█','█','█','█','█','.','█','█','.','█','█','█','█','.','█'],
+                vec!['█','.','.','.','.','.','.','█','█','.','.','.','.','█','.','.','.','.','█','█','.','.','.','.','.','.','█'],
+                vec!['█','█','█','█','█','█','.','█','█','█','█','█','.','█','.','█','█','█','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ',' ',' ',' ',' ',' ',' ',' ',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ','█','█','█',' ','█','█','█',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ','█',' ',' ',' ',' ',' ','█',' ','█','█','.','█','█','█','█','█','█'],
+                vec![' ',' ',' ',' ',' ',' ','.',' ',' ',' ','█',' ',' ',' ',' ',' ','█',' ',' ',' ','.',' ',' ',' ',' ',' ',' '],
+                vec!['█','█','█','█','█','█','.','█','█',' ','█','█','█','█','█','█','█',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ',' ',' ',' ',' ',' ',' ',' ',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ','█','█','█','█','█','█','█',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','█','█','█','█','█','.','█','█',' ','█','█','█','█','█','█','█',' ','█','█','.','█','█','█','█','█','█'],
+                vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','█','.','.','.','.','.','.','.','.','.','.','.','.','█'],
+                vec!['█','.','█','█','█','█','.','█','█','█','█','█','.','█','.','█','█','█','█','█','.','█','█','█','█','.','█'],
+                vec!['█','.','█','█','█','█','.','█','█','█','█','█','.','█','.','█','█','█','█','█','.','█','█','█','█','.','█'],
+                vec!['█','*','.','.','█','█','.','.','.','.','.','.','.',' ','.','.','.','.','.','.','.','█','█','.','.','*','█'],
+                vec!['█','█','█','.','█','█','.','█','█','.','█','█','█','█','█','█','█','.','█','█','.','█','█','.','█','█','█'],
+                vec!['█','█','█','.','█','█','.','█','█','.','█','█','█','█','█','█','█','.','█','█','.','█','█','.','█','█','█'],
+                vec!['█','.','.','.','.','.','.','█','█','.','.','.','.','█','.','.','.','.','█','█','.','.','.','.','.','.','█'],
+                vec!['█','.','█','█','█','█','█','█','█','█','█','█','.','█','.','█','█','█','█','█','█','█','█','█','█','.','█'],
+                vec!['█','.','█','█','█','█','█','█','█','█','█','█','.','█','.','█','█','█','█','█','█','█','█','█','█','.','█'],
+                vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','█'],
+                vec!['█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█'],
             ];
             
-            Grid {
-                width: grid[0].len(),
-                height: grid.len(),
-                grid,
-                pellets_left: 5
-            }
+            Self::from(maze)
         }
 
-        pub fn get_grid(&self) -> &Vec<Vec<GridPoint>> {
-            &self.grid
+        pub fn get_maze(&self) -> &Vec<Vec<GridPoint>> {
+            &self.maze
         }
 
         /// Check to see if provided point is a valid position for an entity to be on.
@@ -82,7 +112,7 @@ pub mod grid {
 
             if col >= self.width || row >= self.height { return false; }
 
-            match self.grid[row][col] {
+            match self.maze[row][col] {
                 GridPoint::Wall => false,
                 _ => true,
             }
@@ -101,19 +131,45 @@ pub mod grid {
             if col >= self.width || row >= self.height { return Err(GridPointError::BadPosError); }
 
             let res = {
-                match self.grid[row][col] {
+                match self.maze[row][col] {
                     GridPoint::Pellet | GridPoint::PowerPellet  => {
                             self.pellets_left -= 1;
-                            Ok(self.grid[row][col]) 
+                            Ok(self.maze[row][col]) 
                         },
                     GridPoint::Empty => Ok(GridPoint::Empty),
-                    GridPoint::Wall => {Err(GridPointError::InconsumableError(self.grid[row][col]))},
+                    GridPoint::Wall => {Err(GridPointError::InconsumableError(self.maze[row][col]))},
                 }
             };
 
-            self.grid[row][col] = GridPoint::Empty;
+            self.maze[row][col] = GridPoint::Empty;
             
             res 
+        }
+    }
+
+    impl From<Vec<Vec<char>>> for Grid {
+        fn from(value: Vec<Vec<char>>) -> Self {
+            let mut grid = Vec::new();
+            let mut pellets_left = 0;
+            for row in value {
+                let mut row_collection = Vec::new();
+                for col in row {
+                    let grid_point: GridPoint = col.into();
+                    match grid_point {
+                        GridPoint::Pellet | GridPoint::PowerPellet => pellets_left += 1,
+                        _ => {},
+                    }
+                    row_collection.push(grid_point);
+                }
+                grid.push(row_collection);
+            }
+
+            Grid {
+                width: grid[0].len(),
+                height: grid.len(),
+                maze: grid,
+                pellets_left
+            }
         }
     }
 
@@ -140,30 +196,29 @@ pub mod grid {
         }
 
         /// Tests if the grid can accurately return a Grid point on valid positions.
-        /// This test is reliant on the current 5x5 test grid and will need to be updated when the grid is updated.
         #[test]
         fn valid_eat() {
             let mut grid = Grid::new();
             assert_eq!(grid.eat(&Vector2(1, 1)), Ok(GridPoint::Pellet));
-            assert_eq!(grid.pellets_left, 4);
-            assert_eq!(grid.eat(&Vector2(2, 1)), Ok(GridPoint::PowerPellet));
-            assert_eq!(grid.pellets_left, 3);
-            assert_eq!(grid.eat(&Vector2(1, 3)), Ok(GridPoint::Empty));
+            assert_eq!(grid.pellets_left, 233);
+            assert_eq!(grid.eat(&Vector2(1, 3)), Ok(GridPoint::PowerPellet));
+            assert_eq!(grid.pellets_left, 232);
+            assert_eq!(grid.eat(&Vector2(9, 9)), Ok(GridPoint::Empty));
         }
 
         /// Tests if the grid replaces previously eatten points with Empty.
-        /// This tests are reliant on the current 5x5 test grid and will need to be updated when the grid is updated.
         #[test]
         fn check_eat_empty() {
             let mut grid = Grid::new();
             let _ = grid.eat(&Vector2(1, 1));
             assert_eq!(grid.eat(&Vector2(1, 1)), Ok(GridPoint::Empty));
-            assert_eq!(grid.pellets_left, 4);
-            let _ = grid.eat(&Vector2(2, 1));
-            assert_eq!(grid.eat(&Vector2(2, 1)), Ok(GridPoint::Empty));
-            assert_eq!(grid.pellets_left, 3);
+            assert_eq!(grid.pellets_left, 233);
             let _ = grid.eat(&Vector2(1, 3));
             assert_eq!(grid.eat(&Vector2(1, 3)), Ok(GridPoint::Empty));
+            assert_eq!(grid.pellets_left, 232);
+            let _ = grid.eat(&Vector2(9, 9));
+            assert_eq!(grid.eat(&Vector2(9, 9)), Ok(GridPoint::Empty));
+            assert_eq!(grid.pellets_left, 232);
         }
 
         /// Tests if the grid can accurately return an error on invalid eat positions.
