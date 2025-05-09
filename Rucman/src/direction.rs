@@ -1,4 +1,4 @@
-use crate::point::Vector2;
+use crate::{direction, point::Vector2};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Direction {
@@ -23,5 +23,14 @@ impl Direction {
 
     pub fn right() -> Self {
         Self::Right(Vector2(1, 0))
+    }
+
+    pub fn directions() -> Vec<Self>{
+        vec![
+            Direction::up(),
+            Direction::down(),
+            Direction::left(),
+            Direction::right(),
+        ]
     }
 }
