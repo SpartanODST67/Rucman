@@ -46,6 +46,7 @@ fn main() {
             },
             None => {},
         }
+        rucman.rucman_move(&grid);
 
         let next_pos = rucman.calculate_facing_position();
         if grid.is_valid_pos(&next_pos) { rucman.set_position(next_pos) };

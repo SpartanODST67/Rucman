@@ -96,6 +96,11 @@ impl CharacterData {
 
         self.position + offset
     }
+
+    pub fn rucman_move(&mut self, grid: &Grid) {
+        let next_pos = self.calculate_facing_position();
+        if grid.is_valid_pos(&next_pos) { self.set_position(next_pos) };
+    }
 }
 
 #[cfg(test)]
