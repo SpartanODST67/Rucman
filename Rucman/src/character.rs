@@ -1,3 +1,5 @@
+use crate::grid::grid::{Grid, GridPoint};
+use crate::a_star;
 use crate::point::Vector2;
 use crate::Direction;
 
@@ -89,6 +91,62 @@ impl CharacterData {
     pub fn rucman_move(&mut self, grid: &Grid) {
         let next_pos = self.calculate_facing_position();
         if grid.is_valid_pos(&next_pos) { self.set_position(next_pos) };
+    }
+
+    pub fn ghost_move(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
+        // Determine target position
+        let target: Vector2 = {
+            match self.character {
+                Character::Blinky | Character ::Clyde | Character::Rucman => position,
+                Character::Inky => {
+                    if Vector2::distance(self.position, position) < 2.0 { 
+                        position
+                    }
+                    else {
+                        let ambush = position.back(rucman_direction);
+                        if !grid.is_valid_pos(&ambush) { 
+                            position 
+                        }
+                        else {
+                            ambush
+                        }
+                    }
+                }, // 1 behind
+                Character::Pinky => {
+                    if Vector2::distance(self.position, position) < 2.0 { 
+                        position 
+                    }
+                    else {
+                        let mut cut_off = position.forward(rucman_direction).forward(rucman_direction);
+                        if !grid.is_valid_pos(&cut_off) {
+                            cut_off = position.forward(rucman_direction);
+                            if !grid.is_valid_pos(&cut_off) { 
+                                position 
+                            }
+                            else {
+                                cut_off
+                            }
+                        }
+                        else {
+                            cut_off
+                        }
+                    }
+                }, // 2 forward
+            }
+        };
+
+        // A-star
+        let path = a_star::a_star(&grid, self.position, target);
+
+        // Move
+        match path {
+            Some(path) => {
+                let mut path = path;
+                let _ = path.pop();
+                self.set_position(path.pop().unwrap());
+            },
+            None => { panic!("No path!");}
+        }
     }
 }
 
