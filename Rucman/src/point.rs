@@ -2,7 +2,7 @@ use std::ops::{Add, Sub};
 
 use crate::direction::Direction;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Vector2(pub i32, pub i32);
 
 impl Add for Vector2 {
@@ -38,6 +38,16 @@ impl Vector2 {
         let c = ((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) as f32;
         c.sqrt()
     } 
+
+    pub fn side_distance(start: Vector2, end: Vector2) -> i32 {
+        let x1 = start.0;
+        let x2 = end.0;
+
+        let y1 = start.1;
+        let y2 = end.1;
+
+        (x2 - x1).abs() + (y2 - y1).abs()
+    }
     
     pub fn forward(&self, direction: Direction) -> Vector2 {
         match direction {
@@ -120,5 +130,15 @@ mod tests {
         assert_eq!(Vector2::distance(Vector2(-1, -1), Vector2(0, 0)), 1.41421356237);
         assert_eq!(Vector2::distance(Vector2(-2, 1), Vector2(2, 1)), 4.0);
         assert_eq!(Vector2::distance(Vector2(2, -1), Vector2(2, 1)), 2.0);
+    }
+
+    #[test]
+    fn test_side_dist() {
+        assert_eq!(Vector2::side_distance(Vector2(0, 0), Vector2(1, 1)), 2);
+        assert_eq!(Vector2::side_distance(Vector2(1, 1), Vector2(0, 0)), 2);
+        assert_eq!(Vector2::side_distance(Vector2(0, 0), Vector2(-1, -1)), 2);
+        assert_eq!(Vector2::side_distance(Vector2(-1, -1), Vector2(0, 0)), 2);
+        assert_eq!(Vector2::side_distance(Vector2(-2, 1), Vector2(2, 1)), 4);
+        assert_eq!(Vector2::side_distance(Vector2(2, -1), Vector2(2, 1)), 2);
     }
 }
