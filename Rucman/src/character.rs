@@ -10,6 +10,12 @@ pub enum Character {
     Clyde,
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Vulnerability {
+    Invulnerable,
+    Vulnerable,
+}
+
 impl From<Character> for char {
     fn from(value: Character) -> Self {
         match value {
@@ -22,19 +28,42 @@ impl From<Character> for char {
 #[derive(Debug, PartialEq, Clone)]
 pub struct CharacterData {
     character: Character,
+    vulnerability: Vulnerability,
     position: Vector2,
     facing_direction: Direction,
 }
 
 impl From<CharacterData> for char {
     fn from(value: CharacterData) -> Self {
-        char::from(value.character)
+        match value.character {
+            Character::Rucman => 'R',
+            _ => {
+                match value.vulnerability {
+                    Vulnerability::Invulnerable => 'M',
+                    Vulnerability::Vulnerable => 'W',
+                }
+            }
+        }
+    }
+}
+
+impl From<&CharacterData> for char {
+    fn from(value: &CharacterData) -> Self {
+        match value.character {
+            Character::Rucman => 'R',
+            _ => {
+                match value.vulnerability {
+                    Vulnerability::Invulnerable => 'M',
+                    Vulnerability::Vulnerable => 'W',
+                }
+            }
+        }
     }
 }
  
 impl CharacterData {
     pub fn new(character: Character) -> Self {
-        Self{ position: Vector2(0, 0), facing_direction: Direction::right(), character }
+        Self{ position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character }
     }
 
     pub fn set_position(&mut self, position: Vector2) {
@@ -75,11 +104,11 @@ mod test {
 
     #[test]
     fn test_character_data_creation() {
-        assert_eq!(CharacterData::new(Character::Rucman), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), character: Character::Rucman});
-        assert_eq!(CharacterData::new(Character::Inky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), character: Character::Inky});
-        assert_eq!(CharacterData::new(Character::Pinky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), character: Character::Pinky});
-        assert_eq!(CharacterData::new(Character::Blinky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), character: Character::Blinky});
-        assert_eq!(CharacterData::new(Character::Clyde), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), character: Character::Clyde});
+        assert_eq!(CharacterData::new(Character::Rucman), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character: Character::Rucman});
+        assert_eq!(CharacterData::new(Character::Inky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character: Character::Inky});
+        assert_eq!(CharacterData::new(Character::Pinky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character: Character::Pinky});
+        assert_eq!(CharacterData::new(Character::Blinky), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character: Character::Blinky});
+        assert_eq!(CharacterData::new(Character::Clyde), CharacterData{position: Vector2(0, 0), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, character: Character::Clyde});
     }
 
     #[test]
