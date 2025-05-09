@@ -10,7 +10,9 @@ mod direction;
 use direction::Direction;
 
 mod character;
-use character::{Character, CharacterData};
+use character::{Character, CharacterData, Vulnerability};
+
+mod a_star;
 
 fn main() {
     let mut grid = Grid::new();
@@ -35,6 +37,7 @@ fn main() {
     while lives > 0 {
         print_screen(&grid, &rucman, &ghosts, &score, &lives);
         
+        //Move Rucman
         let next_dir = take_input();
         match next_dir {
             Some(dir) => {
@@ -48,9 +51,7 @@ fn main() {
         }
         rucman.rucman_move(&grid);
 
-        let next_pos = rucman.calculate_facing_position();
-        if grid.is_valid_pos(&next_pos) { rucman.set_position(next_pos) };
-
+        //Eat pellets
         let eatten = grid.eat(&rucman.get_position());
         match eatten {
             Ok(pellet) => {
@@ -67,6 +68,11 @@ fn main() {
                     _ => {},
                 }
             },
+        }
+
+        //Move Ghosts
+        for ghost in ghosts.iter_mut() {
+            ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction());
         }
 
         sleep(Duration::new(0, 500_000_000));
