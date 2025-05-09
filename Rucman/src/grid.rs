@@ -17,17 +17,6 @@ pub mod grid {
         BadPosError,
     }
 
-    impl From<GridPoint> for String {
-        fn from(input: GridPoint) -> String {
-            match input {
-                GridPoint::Pellet => String::from("."),
-                GridPoint::PowerPellet => String::from("*"),
-                GridPoint::Wall => String::from("█"),
-                GridPoint::Empty => String::from(" "),
-            }
-        }
-    }
-
     impl From<GridPoint> for char {
         fn from(input: GridPoint) -> char {
             match input {
