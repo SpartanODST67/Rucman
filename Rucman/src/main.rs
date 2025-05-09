@@ -37,7 +37,13 @@ fn main() {
         
         let next_dir = take_input();
         match next_dir {
-            Some(dir) => rucman.set_direction(dir),
+            Some(dir) => {
+                let old = rucman.get_direction();
+                rucman.set_direction(dir);
+                if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
+                    rucman.set_direction(old);
+                }
+            },
             None => {},
         }
 
