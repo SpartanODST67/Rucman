@@ -20,7 +20,10 @@ impl From<Character> for char {
     fn from(value: Character) -> Self {
         match value {
             Character::Rucman => 'R',
-            _ => 'C',
+            Character::Inky => 'I',
+            Character::Blinky => 'B',
+            Character::Pinky => 'P',
+            Character::Clyde => 'C',
         }
     }
 }
@@ -33,27 +36,13 @@ pub struct CharacterData {
     facing_direction: Direction,
 }
 
-impl From<CharacterData> for char {
-    fn from(value: CharacterData) -> Self {
-        match value.character {
-            Character::Rucman => 'R',
-            _ => {
-                match value.vulnerability {
-                    Vulnerability::Invulnerable => 'M',
-                    Vulnerability::Vulnerable => 'W',
-                }
-            }
-        }
-    }
-}
-
 impl From<&CharacterData> for char {
     fn from(value: &CharacterData) -> Self {
         match value.character {
             Character::Rucman => 'R',
             _ => {
                 match value.vulnerability {
-                    Vulnerability::Invulnerable => 'M',
+                    Vulnerability::Invulnerable => char::from(value.character),
                     Vulnerability::Vulnerable => 'W',
                 }
             }
