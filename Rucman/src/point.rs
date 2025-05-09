@@ -28,6 +28,17 @@ impl Sub for Vector2 {
 }
 
 impl Vector2 {
+    pub fn distance(start: Vector2, end: Vector2) -> f32 {
+        let x1 = start.0;
+        let x2 = end.0;
+
+        let y1 = start.1;
+        let y2 = end.1;
+
+        let c = ((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) as f32;
+        c.sqrt()
+    } 
+    
     pub fn forward(&self, direction: Direction) -> Vector2 {
         match direction {
             Direction::Up(pos) |
@@ -99,5 +110,15 @@ mod tests {
         assert_eq!(origin, Vector2(0, 0));
         origin = origin.back(Direction::up()).back(Direction::up());
         assert_eq!(origin, Vector2(0, 2));
+    }
+
+    #[test]
+    fn test_dist() {
+        assert_eq!(Vector2::distance(Vector2(0, 0), Vector2(1, 1)), 1.41421356237);
+        assert_eq!(Vector2::distance(Vector2(1, 1), Vector2(0, 0)), 1.41421356237);
+        assert_eq!(Vector2::distance(Vector2(0, 0), Vector2(-1, -1)), 1.41421356237);
+        assert_eq!(Vector2::distance(Vector2(-1, -1), Vector2(0, 0)), 1.41421356237);
+        assert_eq!(Vector2::distance(Vector2(-2, 1), Vector2(2, 1)), 4.0);
+        assert_eq!(Vector2::distance(Vector2(2, -1), Vector2(2, 1)), 2.0);
     }
 }
