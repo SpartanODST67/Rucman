@@ -89,6 +89,14 @@ pub mod grid {
             &self.maze
         }
 
+        pub fn get_width(&self) -> usize {
+            self.width
+        }
+
+        pub fn get_height(&self) -> usize {
+            self.height
+        }
+
         /// Check to see if provided point is a valid position for an entity to be on.
         pub fn is_valid_pos(&self, pos: &Vector2) -> bool {
             let col: i32 = pos.0;
