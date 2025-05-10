@@ -42,6 +42,8 @@ pub struct CharacterData {
     vulnerability: Vulnerability,
     ghost_mode: GhostMode,
     position: Vector2,
+    scatter_position: Vector2,
+    scatter_path: Vec<Vector2>,
     facing_direction: Direction,
 }
 
@@ -68,8 +70,16 @@ impl CharacterData {
             Character::Clyde => Vector2(14, 11),
             Character::Rucman => Vector2(13, 20),
         };
+
+        let scatter_position = match character {
+            Character::Inky => Vector2(25, 25),
+            Character::Blinky => Vector2(25, 1),
+            Character::Pinky => Vector2(1, 1),
+            Character::Clyde => Vector2(1, 25),
+            Character::Rucman => Vector2(0, 0),
+        };
         
-        Self{ facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode:GhostMode::Scatter, character, position }
+        Self{ vulnerability: Vulnerability::Invulnerable, ghost_mode:GhostMode::Scatter, facing_direction: Direction::right(), scatter_path: vec![], character, position, scatter_position }
     }
 
     pub fn set_position(&mut self, position: Vector2) {
@@ -109,6 +119,13 @@ impl CharacterData {
     }
 
     pub fn ghost_move(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
+        match self.ghost_mode {
+            GhostMode::Chase => self.ghost_chase(grid, position, rucman_direction),
+            GhostMode::Scatter => self.ghost_scatter(grid),
+        }
+    }
+
+    fn ghost_chase(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
         // Determine target position
         let target: Vector2 = {
             match self.character {
@@ -158,10 +175,44 @@ impl CharacterData {
             Some(path) => {
                 let mut path = path;
                 let _ = path.pop();
-                self.set_position(path.pop().unwrap());
+                let next = path.pop();
+                if next.is_some() {
+                    self.set_position(next.unwrap());
+                }
             },
             None => { panic!("No path!");}
         }
+    }
+
+    fn ghost_scatter(&mut self, grid: &Grid) {
+        if self.scatter_path.is_empty() {
+            self.scatter_path = a_star::a_star(grid, self.position, self.scatter_position).unwrap();
+        }
+
+        if !self.scatter_path.is_empty() {
+            let next = self.scatter_path.pop().unwrap();
+            self.set_position(next);
+        }
+
+        if self.scatter_path.is_empty() {
+            self.toggle_ghost_mode();
+        }
+    }
+
+    pub fn toggle_ghost_mode(&mut self) {
+        match self.ghost_mode {
+            GhostMode::Chase => self.set_scatter_mode(),
+            GhostMode::Scatter => self.set_chase_mode(),
+        }
+    }
+
+    pub fn set_scatter_mode(&mut self) {
+        self.ghost_mode = GhostMode::Scatter;
+    }
+
+    pub fn set_chase_mode(&mut self) {
+        self.scatter_path.clear();
+        self.ghost_mode = GhostMode::Chase;
     }
 }
 
@@ -171,11 +222,11 @@ mod test {
 
     #[test]
     fn test_character_data_creation() {
-        assert_eq!(CharacterData::new(Character::Rucman), CharacterData{position: Vector2(13, 20), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Rucman});
-        assert_eq!(CharacterData::new(Character::Inky), CharacterData{position: Vector2(12, 11), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Inky});
-        assert_eq!(CharacterData::new(Character::Pinky), CharacterData{position: Vector2(13, 11), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Pinky});
-        assert_eq!(CharacterData::new(Character::Blinky), CharacterData{position: Vector2(13, 9), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Blinky});
-        assert_eq!(CharacterData::new(Character::Clyde), CharacterData{position: Vector2(14, 11), facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Clyde});
+        assert_eq!(CharacterData::new(Character::Rucman), CharacterData{position: Vector2(13, 20), scatter_position: Vector2(0, 0), scatter_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Rucman});
+        assert_eq!(CharacterData::new(Character::Inky), CharacterData{position: Vector2(12, 11), scatter_position: Vector2(25, 25), scatter_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Inky});
+        assert_eq!(CharacterData::new(Character::Pinky), CharacterData{position: Vector2(13, 11), scatter_position: Vector2(1, 1), scatter_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Pinky});
+        assert_eq!(CharacterData::new(Character::Blinky), CharacterData{position: Vector2(13, 9), scatter_position: Vector2(25, 1), scatter_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Blinky});
+        assert_eq!(CharacterData::new(Character::Clyde), CharacterData{position: Vector2(14, 11), scatter_position: Vector2(1, 25), scatter_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Clyde});
     }
 
     #[test]
