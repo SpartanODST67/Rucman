@@ -25,12 +25,6 @@ fn main() {
         CharacterData::new(Character::Clyde),
     ];
 
-    ghosts[0].set_position(Vector2(12, 11));
-    ghosts[1].set_position(Vector2(13, 9));
-    ghosts[2].set_position(Vector2(13, 11));
-    ghosts[3].set_position(Vector2(14, 11));
-    rucman.set_position(Vector2(13, 20));
-
     let mut lives: u8 = 3;
     let mut score: u32 = 0;
 
