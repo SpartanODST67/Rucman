@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration, io};
+use std::{io, thread::sleep, time::Duration};
 
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
@@ -27,6 +27,9 @@ fn main() {
 
     let mut lives: u8 = 3;
     let mut score: u32 = 0;
+    let mut vulnerability_timer: u32 = 0;
+    let vulnerability_length: u32 = 90;
+    let mut frames: u128 = 0;
 
     while lives > 0 {
         print_screen(&grid, &rucman, &ghosts, &score, &lives);
@@ -52,6 +55,10 @@ fn main() {
                 match pellet {
                     GridPoint::Pellet => score += 5,
                     GridPoint::PowerPellet => {
+                        for ghost in ghosts.iter_mut() {
+                            ghost.set_vulnerable();
+                        }
+                        vulnerability_timer = vulnerability_length;
                         score += 10;
                     },
                     _ => {},
@@ -72,11 +79,26 @@ fn main() {
 
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
-            ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction());
+            match ghost.get_vulnerability() {
+                Vulnerability::Invulnerable => ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction()),
+                Vulnerability::Vulnerable => {
+                    if frames % 2 == 0 {
+                        ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction());
+                    }
+                    if vulnerability_timer == 0 {
+                        ghost.set_invulnerable();
+                    }
+                }
+            }            
         }
+
+        if vulnerability_timer > 0 { vulnerability_timer -= 1; }
+        if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
+        else { frames += 1; }
 
         sleep(Duration::new(0, 500_000_000));
     }
+    println!("Game over! Score: {}", score);
 }
 
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score: &u32, lives: &u8) {

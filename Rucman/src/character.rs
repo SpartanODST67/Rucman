@@ -1,4 +1,4 @@
-use crate::grid::grid::{Grid, GridPoint};
+use crate::grid::grid::Grid;
 use crate::a_star;
 use crate::point::Vector2;
 use crate::Direction;
@@ -213,6 +213,27 @@ impl CharacterData {
     pub fn set_chase_mode(&mut self) {
         self.scatter_path.clear();
         self.ghost_mode = GhostMode::Chase;
+    }
+
+    pub fn toggle_vulnerability(&mut self) {
+        match self.vulnerability {
+            Vulnerability::Vulnerable => self.set_invulnerable(),
+            Vulnerability::Invulnerable => self.set_vulnerable(),
+        }
+    }
+
+    pub fn set_vulnerable(&mut self) {
+        self.set_scatter_mode();
+        self.vulnerability = Vulnerability::Vulnerable;
+    }
+
+    pub fn set_invulnerable(&mut self) {
+        self.set_chase_mode();
+        self.vulnerability = Vulnerability::Invulnerable;
+    }
+
+    pub fn get_vulnerability(&self) -> Vulnerability {
+        self.vulnerability
     }
 }
 
