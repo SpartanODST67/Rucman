@@ -147,6 +147,10 @@ pub mod grid {
             
             res 
         }
+
+        pub fn pellets_left(&self) -> u32 {
+            self.pellets_left
+        }
     }
 
     impl From<Vec<Vec<char>>> for Grid {

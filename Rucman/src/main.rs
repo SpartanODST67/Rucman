@@ -76,7 +76,7 @@ fn main() {
             },
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        //check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
 
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
@@ -93,11 +93,13 @@ fn main() {
             }            
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        //check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
 
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
         else { frames += 1; }
+
+        if grid.pellets_left() == 0 { reset_game(&mut grid, &mut rucman, &mut ghosts); }
 
         sleep(Duration::new(0, 500_000_000));
     }
