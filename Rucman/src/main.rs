@@ -4,7 +4,6 @@ mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
 
 mod point;
-use point::Vector2;
 
 mod direction;
 use direction::Direction;
@@ -77,6 +76,8 @@ fn main() {
             },
         }
 
+        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
             match ghost.get_vulnerability() {
@@ -91,6 +92,8 @@ fn main() {
                 }
             }            
         }
+
+        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
 
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
@@ -136,6 +139,41 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
         println!("{row_string}");
         i += 1;
     }
+}
+
+fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score: &mut u32, lives: &mut u8) {
+    for ghost in ghosts.iter_mut() {
+        if ghost.get_position() == rucman.get_position() {
+            match ghost.get_vulnerability() {
+                Vulnerability::Vulnerable => {
+                    *score += 100;
+                    reset_character(ghost);
+                }
+                Vulnerability::Invulnerable => {
+                    *score -= if *score < 1000 { *score } else { 1000 };
+                    *lives -= 1;
+                    reset_characters(rucman, ghosts);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn reset_game(grid: &mut Grid, rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>) {
+    *grid = Grid::new();
+    reset_characters(rucman, ghosts);
+}
+
+fn reset_characters(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>) {
+    reset_character(rucman);
+    for ghost in ghosts {
+        reset_character(ghost);
+    }
+}
+
+fn reset_character(character: &mut CharacterData) {
+    *character = CharacterData::new(character.get_character());
 }
 
 fn take_input() -> Option<Direction> {
