@@ -8,6 +8,7 @@ pub mod grid {
         PowerPellet,
         Wall,
         Empty,
+        Teleporter(Vector2),
     }
 
     /// Represents errors when accessing the grid.
@@ -23,7 +24,7 @@ pub mod grid {
                 GridPoint::Pellet => '.',
                 GridPoint::PowerPellet => '*',
                 GridPoint::Wall => '█',
-                GridPoint::Empty => ' ',
+                _ => ' ',
             }
         }
     }
@@ -81,8 +82,12 @@ pub mod grid {
                 vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','█'],
                 vec!['█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█'],
             ];
-            
-            Self::from(maze)
+
+            let mut res = Self::from(maze);
+            res.maze[12][0] = GridPoint::Teleporter(Vector2(26, 12));
+            res.maze[12][26] = GridPoint::Teleporter(Vector2(0, 12));
+
+            res
         }
 
         pub fn get_maze(&self) -> &Vec<Vec<GridPoint>> {
@@ -134,7 +139,7 @@ pub mod grid {
                             Ok(self.maze[row][col]) 
                         },
                     GridPoint::Empty => Ok(GridPoint::Empty),
-                    GridPoint::Wall => {Err(GridPointError::InconsumableError(self.maze[row][col]))},
+                    _ => {Err(GridPointError::InconsumableError(self.maze[row][col]))},
                 }
             };
 

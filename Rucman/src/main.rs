@@ -59,6 +59,12 @@ fn main() {
             },
             Err(invalid) => {
                 match invalid {
+                    GridPointError::InconsumableError(attempt) => {
+                        match attempt {
+                            GridPoint::Teleporter(other) => rucman.set_position(other),
+                            _ => {},
+                        }
+                    }
                     _ => {},
                 }
             },
