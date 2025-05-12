@@ -94,6 +94,14 @@ impl CharacterData {
         self.facing_direction = direction;
     }
 
+    pub fn set_direction_if_valid(&mut self, direction: Direction, grid: &Grid) {
+        let old = self.get_direction();
+        self.set_direction(direction);
+        if !grid.is_valid_pos(&self.calculate_facing_position()) {
+            self.set_direction(old);
+        }
+    }
+
     pub fn get_direction(&self) -> Direction{
         self.facing_direction
     }

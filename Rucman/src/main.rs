@@ -62,11 +62,7 @@ fn main() -> io::Result<()> {
                     Ok(direction) => {
                         match direction {
                             Some(dir) => {
-                                let old = rucman.get_direction();
-                                rucman.set_direction(dir);
-                                if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
-                                    rucman.set_direction(old);
-                                }
+                                rucman.set_direction_if_valid(dir, &grid);
                             }
                             None => {},
                         }
