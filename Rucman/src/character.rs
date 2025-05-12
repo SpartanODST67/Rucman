@@ -58,7 +58,7 @@ impl From<&CharacterData> for char {
             _ => {
                 match value.vulnerability {
                     Vulnerability::Invulnerable => char::from(value.character),
-                    Vulnerability::Vulnerable => 'W',
+                    Vulnerability::Vulnerable => char::from(value.character).to_ascii_lowercase(),
                 }
             }
         }
