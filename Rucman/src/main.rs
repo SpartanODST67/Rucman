@@ -1,12 +1,12 @@
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
 use crossterm::cursor;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
 use crossterm::style::Print;
 
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use std::io::{self, stdout, stderr, Error};
-use std::sync::mpsc::{self, Receiver};
+use std::io::{self, stdout, stderr};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 
@@ -23,24 +23,31 @@ use character::{Character, CharacterData, Vulnerability};
 
 mod a_star;
 
-enum InputError {
-    QuitInput,
-    StandardInputError(Error)
+struct GameManager {
+    grid: Arc<Mutex<Grid>>,
+    rucman: Arc<Mutex<CharacterData>>,
+    ghosts: Arc<Mutex<Vec<CharacterData>>>,
 }
 
 fn main() -> io::Result<()> {
 
     enable_raw_mode()?;
 
-    let mut grid = Grid::new();
+    let grid = Grid::new();
 
-    let mut rucman = CharacterData::new(Character::Rucman);
-    let mut ghosts = vec![
+    let rucman = CharacterData::new(Character::Rucman);
+    let ghosts = vec![
         CharacterData::new(Character::Inky),
         CharacterData::new(Character::Blinky),
         CharacterData::new(Character::Pinky),
         CharacterData::new(Character::Clyde),
     ];
+
+    let game_manager = GameManager {
+        grid: Arc::new(Mutex::new(grid)),
+        rucman: Arc::new(Mutex::new(rucman)),
+        ghosts: Arc::new(Mutex::new(ghosts)),
+    };
 
     let mut lives: u8 = 3;
     let mut score: u32 = 0;
@@ -48,47 +55,15 @@ fn main() -> io::Result<()> {
     let vulnerability_length: u32 = 90;
     let mut frames: u128 = 0;
 
-    let (input_thread, input_channel) = create_input_controller();
+    let input_thread = create_input_controller(&game_manager);
 
     while lives > 0 {        
-        //Move Rucman
-        let mut player_input = Err(mpsc::TryRecvError::Empty);        
-        while let Ok(input) = input_channel.try_recv() {
-            player_input = Ok(input);
-        }; //Take the last input in the channel.
+        if input_thread.is_finished() { break; }
 
-        match player_input {
-            Ok(input_result) => {
-                match input_result {
-                    Ok(direction) => {
-                        match direction {
-                            Some(dir) => {
-                                rucman.set_direction_if_valid(dir, &grid);
-                            }
-                            None => {},
-                        }
-                    },
-                    Err(err) => {
-                        match err {
-                            InputError::StandardInputError(err) => {
-                                let _ = execute!(stderr(), Print(err.to_string()));
-                                break;
-                            },
-                            InputError::QuitInput => break, //This is an expected break, so no need to log an error.
-                        }
-                    }
-                }
-            },
-            Err(err) => {
-                match err {
-                    mpsc::TryRecvError::Disconnected => {
-                        let _ = execute!(stderr(), Print(err.to_string()));
-                        break;
-                    }, //Stop the game if the input is ever lost.
-                    mpsc::TryRecvError::Empty => {},
-                }
-            }
-        }
+        let mut rucman = game_manager.rucman.lock().unwrap();
+        let mut ghosts = game_manager.ghosts.lock().unwrap();
+        let mut grid = game_manager.grid.lock().unwrap();
+
         rucman.rucman_move(&grid);
 
         //Eat pellets
@@ -146,8 +121,15 @@ fn main() -> io::Result<()> {
         if grid.pellets_left() == 0 { reset_game(&mut grid, &mut rucman, &mut ghosts); }
 
         print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
+        
+        //Frees up locks
+        drop(rucman);
+        drop(grid);
+        drop(ghosts);
         sleep(Duration::new(0, 266666672));
+        //sleep(Duration::new(0, 1000000000));
     }
+
     execute!(stdout(), Print(format!("Game over! Score: {}\n", score)))?;
     if !input_thread.is_finished() {
         execute!(stdout(), Print(format!("Press Ctrl+C to end game.\n")))?;
@@ -203,11 +185,11 @@ fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, 
         if ghost.get_position() == rucman.get_position() {
             match ghost.get_vulnerability() {
                 Vulnerability::Vulnerable => {
-                    *score += 100;
+                    *score += 200;
                     reset_character(ghost);
                 }
                 Vulnerability::Invulnerable => {
-                    *score -= if *score < 1000 { *score } else { 1000 };
+                    *score -= if *score < 100 { *score } else { 100 };
                     *lives -= 1;
                     reset_characters(rucman, ghosts);
                     break;
@@ -233,65 +215,41 @@ fn reset_character(character: &mut CharacterData) {
     *character = CharacterData::new(character.get_character());
 }
 
-fn take_input() -> Result<Option<Direction>, InputError> {
-    match read() {
-        Ok(event) => {
-            match event {
-                Event::Key(KeyEvent {               //Directional inputs
-                    code: KeyCode::Char('w'),
-                    kind: KeyEventKind::Press,
-                    ..
-                }) => Ok(Some(Direction::up())),
-                Event::Key(KeyEvent {
-                    code: KeyCode::Char('a'),
-                    kind: KeyEventKind::Press,
-                    ..
-                }) => Ok(Some(Direction::left())),
-                Event::Key(KeyEvent {
-                    code: KeyCode::Char('s'),
-                    kind: KeyEventKind::Press,
-                    ..
-                }) => Ok(Some(Direction::down())),
-                Event::Key(KeyEvent {
-                    code: KeyCode::Char('d'),
-                    ..
-                }) => Ok(Some(Direction::right())),
-                Event::Key(KeyEvent {                   //Quit inputs
-                    code: KeyCode::Char('c'),
-                    modifiers: KeyModifiers::CONTROL,
-                    ..
-                }) | 
-                Event::Key(KeyEvent { 
-                    code: KeyCode::Char('q'),
-                    modifiers: KeyModifiers::CONTROL,
-                    ..
-                })=> Err(InputError::QuitInput),
-                _ => Ok(None), //Ignore all other events.
-            }
-        }
-        Err(err) => { Err(InputError::StandardInputError(err)) }, //Erros that are out of my control.
-    }
-}
+fn create_input_controller(game_manager: &GameManager) -> JoinHandle<()> {
+    let rucman = game_manager.rucman.clone();
+    let grid = game_manager.grid.clone();
 
-fn create_input_controller() -> (JoinHandle<()>, Receiver<Result<Option<Direction>, InputError>>) {
-    let (tx, rx) = mpsc::channel::<Result<Option<Direction>, InputError>>();
+    thread::spawn(move || loop {
+        match read() {
+            Ok(event) => {
+                match event {
+                    Event::Key(key) => {
+                        if !key.is_release() {
+                            match key.code {
+                                KeyCode::Char('w') => rucman.lock().unwrap().set_direction_if_valid(Direction::up(), &grid.lock().unwrap()),
+                                KeyCode::Char('a') => rucman.lock().unwrap().set_direction_if_valid(Direction::left(), &grid.lock().unwrap()),
+                                KeyCode::Char('s') => rucman.lock().unwrap().set_direction_if_valid(Direction::down(), &grid.lock().unwrap()),
+                                KeyCode::Char('d') => rucman.lock().unwrap().set_direction_if_valid(Direction::right(), &grid.lock().unwrap()),
+                                
+                                KeyCode::Char('c') | KeyCode::Char('q') => {
+                                    match key.modifiers {
+                                        KeyModifiers::CONTROL => break,
+                                        _ => {}
+                                    }
+                                },
 
-    let th = thread::spawn(move || loop {
-        match take_input() {
-            Ok(direction) => {
-                match direction {
-                    Some(dir) => { 
-                        let _ = tx.send(Ok(Some(dir))); 
+                                _ => {},
+                            }
+                        }
                     },
-                    None => {}
+
+                    _ => {}
                 }
-            },
+            }
             Err(err) => {
-                let _ = tx.send(Err(err));
+                let _ = execute!(stderr(), Print(format!("{err}")));
                 break;
             }
-        }        
-    });
-
-    (th, rx)
+        }
+    })
 }
