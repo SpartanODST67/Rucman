@@ -23,10 +23,42 @@ use character::{Character, CharacterData, Vulnerability};
 
 mod a_star;
 
-struct GameManager {
+struct EntityManager {
     grid: Arc<Mutex<Grid>>,
     rucman: Arc<Mutex<CharacterData>>,
     ghosts: Arc<Mutex<Vec<CharacterData>>>,
+}
+
+struct ScoreManager {
+    score: u32,
+    one_up_score: u32,
+    lives: u8,
+}
+
+impl ScoreManager {
+    fn add_score(&mut self, score: u32) {
+        if score <= 0 { return; }
+
+        self.score += score;
+        if self.score >= self.one_up_score {
+            self.one_up_score *= 2;
+            self.lives += 1;
+        }
+    }
+
+    fn remove_score(&mut self, score: u32) {
+        if self.score < score { 
+            self.score = 0;
+            return;
+        }
+
+        self.score -= score;
+    }
+
+    fn lose_life(&mut self) {
+        self.lives -= 1;
+        self.remove_score(150);
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -43,26 +75,30 @@ fn main() -> io::Result<()> {
         CharacterData::new(Character::Clyde),
     ];
 
-    let game_manager = GameManager {
+    let entity_manager = EntityManager {
         grid: Arc::new(Mutex::new(grid)),
         rucman: Arc::new(Mutex::new(rucman)),
-        ghosts: Arc::new(Mutex::new(ghosts)),
+        ghosts: Arc::new(Mutex::new(ghosts)), 
     };
 
-    let mut lives: u8 = 3;
-    let mut score: u32 = 0;
+    let mut score_manager = ScoreManager {
+        score: 0,
+        one_up_score: 1000,
+        lives: 3,
+    };
+
     let mut vulnerability_timer: u32 = 0;
-    let vulnerability_length: u32 = 90;
+    let mut vulnerability_length: u32 = 90;
     let mut frames: u128 = 0;
 
-    let input_thread = create_input_controller(&game_manager);
+    let input_thread = create_input_controller(&entity_manager);
 
-    while lives > 0 {        
+    while score_manager.lives > 0 {        
         if input_thread.is_finished() { break; }
 
-        let mut rucman = game_manager.rucman.lock().unwrap();
-        let mut ghosts = game_manager.ghosts.lock().unwrap();
-        let mut grid = game_manager.grid.lock().unwrap();
+        let mut rucman = entity_manager.rucman.lock().unwrap();
+        let mut ghosts = entity_manager.ghosts.lock().unwrap();
+        let mut grid = entity_manager.grid.lock().unwrap();
 
         rucman.rucman_move(&grid);
 
@@ -71,13 +107,13 @@ fn main() -> io::Result<()> {
         match eatten {
             Ok(pellet) => {
                 match pellet {
-                    GridPoint::Pellet => score += 5,
+                    GridPoint::Pellet => score_manager.add_score(5),
                     GridPoint::PowerPellet => {
                         for ghost in ghosts.iter_mut() {
                             ghost.set_vulnerable();
                         }
                         vulnerability_timer = vulnerability_length;
-                        score += 10;
+                        score_manager.add_score(10);
                     },
                     _ => {},
                 }
@@ -95,7 +131,7 @@ fn main() -> io::Result<()> {
             },
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        check_collision(&mut rucman, &mut ghosts, &mut score_manager);
 
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
@@ -112,25 +148,30 @@ fn main() -> io::Result<()> {
             }            
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        check_collision(&mut rucman, &mut ghosts, &mut score_manager);
 
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
         else { frames += 1; }
 
-        if grid.pellets_left() == 0 { reset_game(&mut grid, &mut rucman, &mut ghosts); }
+        if grid.pellets_left() == 0 { 
+            reset_game(&mut grid, &mut rucman, &mut ghosts); 
+            score_manager.add_score(1000);
+            vulnerability_length -= 1;
+        }
 
-        print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
+        print_screen(&grid, &rucman, &ghosts, &score_manager)?;
         
         //Frees up locks
         drop(rucman);
         drop(grid);
         drop(ghosts);
+
         sleep(Duration::new(0, 266666672));
         //sleep(Duration::new(0, 1000000000));
     }
 
-    execute!(stdout(), Print(format!("Game over! Score: {}\n", score)))?;
+    execute!(stdout(), Print(format!("Game over! Score: {}\n", score_manager.score)))?;
     if !input_thread.is_finished() {
         execute!(stdout(), Print(format!("Press Ctrl+C to end game.\n")))?;
         let _ = input_thread.join();
@@ -140,7 +181,11 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score: &u32, lives: &u8) -> io::Result<()> {        
+fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
+    let score = score_manager.score;
+    let lives = score_manager.lives;
+    let one_up_score = score_manager.one_up_score;
+
     let mut pass_one = Vec::new();
 
     /* What we're doing here is like painting a landscape. We start with painting the background
@@ -170,6 +215,7 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
         let mut row_string: String = row.iter().collect();
         if i == 1 { row_string.push_str(format!(" Score: {score}").as_str()); }
         if i == 2 { row_string.push_str(format!(" Lives: {lives}").as_str()); }
+        if i == 3 { row_string.push_str(format!(" One up at: {one_up_score}").as_str());}
         row_string.push('\n');
 
         result_string.push_str(&row_string);
@@ -180,17 +226,16 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     Ok(())
 }
 
-fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score: &mut u32, lives: &mut u8) {
+fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) {
     for ghost in ghosts.iter_mut() {
         if ghost.get_position() == rucman.get_position() {
             match ghost.get_vulnerability() {
                 Vulnerability::Vulnerable => {
-                    *score += 200;
+                    score_manager.add_score(200);
                     reset_character(ghost);
                 }
                 Vulnerability::Invulnerable => {
-                    *score -= if *score < 100 { *score } else { 100 };
-                    *lives -= 1;
+                    score_manager.lose_life();
                     reset_characters(rucman, ghosts);
                     break;
                 }
@@ -215,7 +260,7 @@ fn reset_character(character: &mut CharacterData) {
     *character = CharacterData::new(character.get_character());
 }
 
-fn create_input_controller(game_manager: &GameManager) -> JoinHandle<()> {
+fn create_input_controller(game_manager: &EntityManager) -> JoinHandle<()> {
     let rucman = game_manager.rucman.clone();
     let grid = game_manager.grid.clone();
 
