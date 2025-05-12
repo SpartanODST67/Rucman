@@ -51,7 +51,9 @@ pub mod grid {
     }
 
     impl Grid {
+        /// Creates a new rucman grid.
         pub fn new() -> Self {
+            // Doing it this way made it easier to visualize the maze.
             let maze = vec![
                 vec!['█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█','█'],
                 vec!['█','.','.','.','.','.','.','.','.','.','.','.','.','█','.','.','.','.','.','.','.','.','.','.','.','.','█'],
@@ -90,14 +92,17 @@ pub mod grid {
             res
         }
 
+        /// Borrow the maze from grid.
         pub fn get_maze(&self) -> &Vec<Vec<GridPoint>> {
             &self.maze
         }
 
+        /// Retrieves the full width of the maze.
         pub fn get_width(&self) -> usize {
             self.width
         }
 
+        /// Retrives the full height of the maze.
         pub fn get_height(&self) -> usize {
             self.height
         }
@@ -148,6 +153,7 @@ pub mod grid {
             res 
         }
 
+        /// Retrieves the number of pellets left in the maze.
         pub fn pellets_left(&self) -> u32 {
             self.pellets_left
         }

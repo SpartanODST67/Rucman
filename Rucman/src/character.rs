@@ -3,6 +3,7 @@ use crate::a_star;
 use crate::point::Vector2;
 use crate::Direction;
 
+/// Denotes which rucman character is currently represented.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Character {
     Rucman,
@@ -12,12 +13,14 @@ pub enum Character {
     Clyde,
 }
 
+/// Denotes if a ghost is vulnerable or invulnerable. Both states have different behaviour when collided with.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Vulnerability {
     Invulnerable,
     Vulnerable,
 }
 
+/// Denotes if the ghost should chase rucman or scatter.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GhostMode {
     Scatter,
@@ -36,6 +39,7 @@ impl From<Character> for char {
     }
 }
 
+/// Stores character data. Most data is relevant for the ghosts.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CharacterData {
     character: Character,
@@ -62,6 +66,7 @@ impl From<&CharacterData> for char {
 }
  
 impl CharacterData {
+    /// Creates and initializes new character data depending on the provided character.
     pub fn new(character: Character) -> Self {
         let position = match character {
             Character::Inky => Vector2(12, 11),
@@ -82,18 +87,22 @@ impl CharacterData {
         Self{ vulnerability: Vulnerability::Invulnerable, ghost_mode:GhostMode::Scatter, facing_direction: Direction::right(), scatter_path: vec![], character, position, scatter_position }
     }
 
+    /// Sets the position of the character.
     pub fn set_position(&mut self, position: Vector2) {
         self.position = position;
     }
 
+    /// Gets the position of the character.
     pub fn get_position(&self) -> Vector2 {
         self.position
     }
 
+    /// Sets the direction of the character.
     pub fn set_direction(&mut self, direction: Direction) {
         self.facing_direction = direction;
     }
 
+    /// Sets the direction of the character only if they are allowed to move in the new direction.
     pub fn set_direction_if_valid(&mut self, direction: Direction, grid: &Grid) {
         let old = self.get_direction();
         self.set_direction(direction);
@@ -102,14 +111,17 @@ impl CharacterData {
         }
     }
 
+    /// Gets the direction the character is currently facing.
     pub fn get_direction(&self) -> Direction{
         self.facing_direction
     }
 
+    /// Gets which character is represented by this character data.
     pub fn get_character(&self) -> Character {
         self.character
     }
 
+    /// Calculates a position 1 unit away in relation to the character's current direction.
     pub fn calculate_facing_position(&self) -> Vector2 {
         let offset = {
             match self.facing_direction {
@@ -121,11 +133,13 @@ impl CharacterData {
         self.position + offset
     }
 
+    /// Moves in the direction the character is currently facing.
     pub fn rucman_move(&mut self, grid: &Grid) {
         let next_pos = self.calculate_facing_position();
         if grid.is_valid_pos(&next_pos) { self.set_position(next_pos) };
     }
 
+    /// Move based on the current ghost mode.
     pub fn ghost_move(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
         match self.ghost_mode {
             GhostMode::Chase => self.ghost_chase(grid, position, rucman_direction),
@@ -133,6 +147,7 @@ impl CharacterData {
         }
     }
 
+    /// Move towards the provided position.
     fn ghost_chase(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
         // Determine target position
         let target: Vector2 = {
@@ -192,6 +207,7 @@ impl CharacterData {
         }
     }
 
+    /// Move towards the character's scatter point.
     fn ghost_scatter(&mut self, grid: &Grid) {
         if self.scatter_path.is_empty() {
             self.scatter_path = a_star::a_star(grid, self.position, self.scatter_position).unwrap();
@@ -207,6 +223,7 @@ impl CharacterData {
         }
     }
 
+    /// Set ghost mode to Scatter if in Chase mode and vise versa.
     pub fn toggle_ghost_mode(&mut self) {
         match self.ghost_mode {
             GhostMode::Chase => self.set_scatter_mode(),
@@ -214,15 +231,18 @@ impl CharacterData {
         }
     }
 
+    /// Sets ghost mode to Scatter.
     pub fn set_scatter_mode(&mut self) {
         self.ghost_mode = GhostMode::Scatter;
     }
 
+    /// Sets ghost mode to chase.
     pub fn set_chase_mode(&mut self) {
         self.scatter_path.clear();
         self.ghost_mode = GhostMode::Chase;
     }
 
+    /// Makes the ghost Vulnerable if they are Invulnerable and vise versa.
     pub fn toggle_vulnerability(&mut self) {
         match self.vulnerability {
             Vulnerability::Vulnerable => self.set_invulnerable(),
@@ -230,16 +250,19 @@ impl CharacterData {
         }
     }
 
+    /// Makes the ghost vulnerable and enter scatter mode.
     pub fn set_vulnerable(&mut self) {
         self.set_scatter_mode();
         self.vulnerability = Vulnerability::Vulnerable;
     }
 
+    /// Makes the ghost invulnerable and enter chase mode.
     pub fn set_invulnerable(&mut self) {
         self.set_chase_mode();
         self.vulnerability = Vulnerability::Invulnerable;
     }
 
+    /// Gets the current vulnerability of the ghost.
     pub fn get_vulnerability(&self) -> Vulnerability {
         self.vulnerability
     }

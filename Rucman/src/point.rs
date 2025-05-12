@@ -2,6 +2,7 @@ use std::ops::{Add, Sub};
 
 use crate::direction::Direction;
 
+/// Denotes an x, y pair. Due to array accessing, increases in Y values will go in the downwards direction of the grid.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Vector2(pub i32, pub i32);
 
@@ -28,6 +29,7 @@ impl Sub for Vector2 {
 }
 
 impl Vector2 {
+    /// Calculates the linear distance between the start and end vectors.
     pub fn distance(start: Vector2, end: Vector2) -> f32 {
         let x1 = start.0;
         let x2 = end.0;
@@ -39,6 +41,8 @@ impl Vector2 {
         c.sqrt()
     } 
 
+    /// A heuristic function that calculates the distance between the start and end
+    /// vectors by adding the difference of x and y.
     pub fn side_distance(start: Vector2, end: Vector2) -> i32 {
         let x1 = start.0;
         let x2 = end.0;
@@ -49,6 +53,7 @@ impl Vector2 {
         (x2 - x1).abs() + (y2 - y1).abs()
     }
     
+    /// Generates a point forward of the current vector relative to the provided direction.
     pub fn forward(&self, direction: Direction) -> Vector2 {
         match direction {
             Direction::Up(pos) |
@@ -58,6 +63,7 @@ impl Vector2 {
         }
     }
 
+    /// Generates a point behind the current vector relative to the provided direction.
     pub fn back(&self, direction: Direction) -> Vector2 {
         match direction {
             Direction::Up(pos) | 

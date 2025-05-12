@@ -146,7 +146,7 @@ fn main() -> io::Result<()> {
         if grid.pellets_left() == 0 { reset_game(&mut grid, &mut rucman, &mut ghosts); }
 
         print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
-        sleep(Duration::new(0, 16_666_667 * 16));
+        sleep(Duration::new(0, 266666672));
     }
     execute!(stdout(), Print(format!("Game over! Score: {}\n", score)))?;
     if !input_thread.is_finished() {
