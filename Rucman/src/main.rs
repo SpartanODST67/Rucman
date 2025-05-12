@@ -1,4 +1,5 @@
-use std::{io, thread::sleep, time::Duration};
+use crossterm::{cursor, event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType}};
+use std::{io::{self, stdout, Error}, thread::sleep, time::Duration};
 
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
@@ -13,7 +14,15 @@ use character::{Character, CharacterData, Vulnerability};
 
 mod a_star;
 
-fn main() {
+enum InputError {
+    QuitInput,
+    StandardInputError(Error)
+}
+
+fn main() -> io::Result<()> {
+
+    enable_raw_mode()?;
+
     let mut grid = Grid::new();
 
     let mut rucman = CharacterData::new(Character::Rucman);
@@ -31,19 +40,29 @@ fn main() {
     let mut frames: u128 = 0;
 
     while lives > 0 {
-        print_screen(&grid, &rucman, &ghosts, &score, &lives);
+        print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
         
         //Move Rucman
         let next_dir = take_input();
         match next_dir {
-            Some(dir) => {
-                let old = rucman.get_direction();
-                rucman.set_direction(dir);
-                if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
-                    rucman.set_direction(old);
+            Ok(dir) => {
+                match dir {
+                    Some(dir) => {
+                        let old = rucman.get_direction();
+                        rucman.set_direction(dir);
+                        if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
+                            rucman.set_direction(old);
+                        }
+                    },
+                    None => {},
                 }
-            },
-            None => {},
+            }
+            Err(err) => {
+                match err {
+                    InputError::QuitInput => break,
+                    InputError::StandardInputError(err) => { return Err(err); }
+                }
+            }
         }
         rucman.rucman_move(&grid);
 
@@ -76,7 +95,7 @@ fn main() {
             },
         }
 
-        //check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
 
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
@@ -93,7 +112,7 @@ fn main() {
             }            
         }
 
-        //check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
+        check_collision(&mut rucman, &mut ghosts, &mut score, &mut lives);
 
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
@@ -103,12 +122,13 @@ fn main() {
 
         sleep(Duration::new(0, 500_000_000));
     }
-    println!("Game over! Score: {}", score);
+    execute!(stdout(), Print(format!("Game over! Score: {}", score)))?;
+    disable_raw_mode()?;
+
+    Ok(())
 }
 
-fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score: &u32, lives: &u8) {
-    clearscreen::clear().unwrap();
-    
+fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score: &u32, lives: &u8) -> io::Result<()> {        
     let mut pass_one = Vec::new();
 
     /* What we're doing here is like painting a landscape. We start with painting the background
@@ -132,15 +152,20 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     pass_one[pos.1 as usize][pos.0 as usize] = char::from(rucman);
     
     // Convert collected data into strings and print it.
+    let mut result_string = String::new();
     let mut i = 0;
     for row in pass_one {
         let mut row_string: String = row.iter().collect();
         if i == 1 { row_string.push_str(format!(" Score: {score}").as_str()); }
         if i == 2 { row_string.push_str(format!(" Lives: {lives}").as_str()); }
+        row_string.push('\n');
 
-        println!("{row_string}");
+        result_string.push_str(&row_string);
         i += 1;
     }
+
+    execute!(stdout(), Clear(ClearType::All), cursor::MoveTo(0, 0), Print(result_string))?;
+    Ok(())
 }
 
 fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score: &mut u32, lives: &mut u8) {
@@ -178,19 +203,42 @@ fn reset_character(character: &mut CharacterData) {
     *character = CharacterData::new(character.get_character());
 }
 
-fn take_input() -> Option<Direction> {
-    let mut input = String::new();
-    let read = io::stdin().read_line(&mut input);
-    match read {
-        Ok(_) => {
-            match input.trim() {
-                "w" => Some(Direction::up()),
-                "a" => Some(Direction::left()),
-                "s" => Some(Direction::down()),
-                "d" => Some(Direction::right()),
-                _ => None,
+fn take_input() -> Result<Option<Direction>, InputError> {
+    match read() {
+        Ok(event) => {
+            match event {
+                Event::Key(KeyEvent {               //Directional inputs
+                    code: KeyCode::Char('w'),
+                    kind: KeyEventKind::Press,
+                    ..
+                }) => Ok(Some(Direction::up())),
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('a'),
+                    kind: KeyEventKind::Press,
+                    ..
+                }) => Ok(Some(Direction::left())),
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('s'),
+                    kind: KeyEventKind::Press,
+                    ..
+                }) => Ok(Some(Direction::down())),
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('d'),
+                    ..
+                }) => Ok(Some(Direction::right())),
+                Event::Key(KeyEvent {                   //Quit inputs
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                    ..
+                }) | 
+                Event::Key(KeyEvent { 
+                    code: KeyCode::Char('q'),
+                    modifiers: KeyModifiers::CONTROL,
+                    ..
+                })=> Err(InputError::QuitInput),
+                _ => Ok(None), //Ignore all other events.
             }
         }
-        Err(_) => None,
+        Err(err) => { Err(InputError::StandardInputError(err)) }, //Erros that are out of my control.
     }
 }
