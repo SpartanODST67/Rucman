@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::io::{self, stdout, stderr, Error};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
-use std::thread::sleep;
+use std::thread::{sleep, JoinHandle};
 
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
@@ -48,13 +48,14 @@ fn main() -> io::Result<()> {
     let vulnerability_length: u32 = 90;
     let mut frames: u128 = 0;
 
-    let input_controller = create_input_controller();
+    let (input_thread, input_channel) = create_input_controller();
 
     while lives > 0 {        
         //Move Rucman
-        let player_input = input_controller.try_recv();
-        
-        while let Ok(_) = input_controller.try_recv() {}; //Empty the channel.
+        let mut player_input = Err(mpsc::TryRecvError::Empty);        
+        while let Ok(input) = input_channel.try_recv() {
+            player_input = Ok(input);
+        }; //Take the last input in the channel.
 
         match player_input {
             Ok(input_result) => {
@@ -147,7 +148,11 @@ fn main() -> io::Result<()> {
         print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
         sleep(Duration::new(0, 16_666_667 * 16));
     }
-    execute!(stdout(), Print(format!("Game over! Score: {}", score)))?;
+    execute!(stdout(), Print(format!("Game over! Score: {}\n", score)))?;
+    if !input_thread.is_finished() {
+        execute!(stdout(), Print(format!("Press Ctrl+C to end game.\n")))?;
+        let _ = input_thread.join();
+    }
     disable_raw_mode()?;
 
     Ok(())
@@ -268,10 +273,10 @@ fn take_input() -> Result<Option<Direction>, InputError> {
     }
 }
 
-fn create_input_controller() -> Receiver<Result<Option<Direction>, InputError>> {
+fn create_input_controller() -> (JoinHandle<()>, Receiver<Result<Option<Direction>, InputError>>) {
     let (tx, rx) = mpsc::channel::<Result<Option<Direction>, InputError>>();
 
-    thread::spawn(move || loop {
+    let th = thread::spawn(move || loop {
         match take_input() {
             Ok(direction) => {
                 match direction {
@@ -288,5 +293,5 @@ fn create_input_controller() -> Receiver<Result<Option<Direction>, InputError>> 
         }        
     });
 
-    rx
+    (th, rx)
 }
