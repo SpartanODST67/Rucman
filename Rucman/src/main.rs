@@ -1,5 +1,14 @@
-use crossterm::{cursor, event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType}};
-use std::{io::{self, stdout, Error}, thread::sleep, time::Duration};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
+use crossterm::cursor;
+use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::execute;
+use crossterm::style::Print;
+
+use std::time::Duration;
+use std::io::{self, stdout, stderr, Error};
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
+use std::thread::sleep;
 
 mod grid;
 use grid::grid::{Grid, GridPoint, GridPointError}; //grid.rs -> mod grid -> Grid stuct et al
@@ -39,28 +48,47 @@ fn main() -> io::Result<()> {
     let vulnerability_length: u32 = 90;
     let mut frames: u128 = 0;
 
-    while lives > 0 {
-        print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
-        
+    let input_controller = create_input_controller();
+
+    while lives > 0 {        
         //Move Rucman
-        let next_dir = take_input();
-        match next_dir {
-            Ok(dir) => {
-                match dir {
-                    Some(dir) => {
-                        let old = rucman.get_direction();
-                        rucman.set_direction(dir);
-                        if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
-                            rucman.set_direction(old);
+        let player_input = input_controller.try_recv();
+        
+        while let Ok(_) = input_controller.try_recv() {}; //Empty the channel.
+
+        match player_input {
+            Ok(input_result) => {
+                match input_result {
+                    Ok(direction) => {
+                        match direction {
+                            Some(dir) => {
+                                let old = rucman.get_direction();
+                                rucman.set_direction(dir);
+                                if !grid.is_valid_pos(&rucman.calculate_facing_position()) {
+                                    rucman.set_direction(old);
+                                }
+                            }
+                            None => {},
                         }
                     },
-                    None => {},
+                    Err(err) => {
+                        match err {
+                            InputError::StandardInputError(err) => {
+                                let _ = execute!(stderr(), Print(err.to_string()));
+                                break;
+                            },
+                            InputError::QuitInput => break, //This is an expected break, so no need to log an error.
+                        }
+                    }
                 }
-            }
+            },
             Err(err) => {
                 match err {
-                    InputError::QuitInput => break,
-                    InputError::StandardInputError(err) => { return Err(err); }
+                    mpsc::TryRecvError::Disconnected => {
+                        let _ = execute!(stderr(), Print(err.to_string()));
+                        break;
+                    }, //Stop the game if the input is ever lost.
+                    mpsc::TryRecvError::Empty => {},
                 }
             }
         }
@@ -120,7 +148,8 @@ fn main() -> io::Result<()> {
 
         if grid.pellets_left() == 0 { reset_game(&mut grid, &mut rucman, &mut ghosts); }
 
-        sleep(Duration::new(0, 500_000_000));
+        print_screen(&grid, &rucman, &ghosts, &score, &lives)?;
+        sleep(Duration::new(0, 16_666_667 * 16));
     }
     execute!(stdout(), Print(format!("Game over! Score: {}", score)))?;
     disable_raw_mode()?;
@@ -241,4 +270,27 @@ fn take_input() -> Result<Option<Direction>, InputError> {
         }
         Err(err) => { Err(InputError::StandardInputError(err)) }, //Erros that are out of my control.
     }
+}
+
+fn create_input_controller() -> Receiver<Result<Option<Direction>, InputError>> {
+    let (tx, rx) = mpsc::channel::<Result<Option<Direction>, InputError>>();
+
+    thread::spawn(move || loop {
+        match take_input() {
+            Ok(direction) => {
+                match direction {
+                    Some(dir) => { 
+                        let _ = tx.send(Ok(Some(dir))); 
+                    },
+                    None => {}
+                }
+            },
+            Err(err) => {
+                let _ = tx.send(Err(err));
+                break;
+            }
+        }        
+    });
+
+    rx
 }
