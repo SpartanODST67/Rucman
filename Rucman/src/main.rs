@@ -33,6 +33,7 @@ struct ScoreManager {
     score: u32,
     one_up_score: u32,
     lives: u8,
+    scatter_interval: u128,
 }
 
 impl ScoreManager {
@@ -85,6 +86,7 @@ fn main() -> io::Result<()> {
         score: 0,
         one_up_score: 1000,
         lives: 3,
+        scatter_interval: 75,
     };
 
     let mut vulnerability_timer: u32 = 0;
@@ -154,10 +156,17 @@ fn main() -> io::Result<()> {
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
         else { frames += 1; }
 
+        if frames % score_manager.scatter_interval == 0 {
+            for ghost in ghosts.iter_mut() {
+                ghost.set_scatter_mode();
+            }
+        }
+
         if grid.pellets_left() == 0 { 
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
             score_manager.add_score(1000);
             vulnerability_length -= 1;
+            score_manager.scatter_interval *= 2;
         }
 
         print_screen(&grid, &rucman, &ghosts, &score_manager)?;

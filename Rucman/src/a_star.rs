@@ -25,7 +25,7 @@ impl PartialOrd for State {
 }
 
 /// Finds the shortest path from the start point to the end point.
-pub fn a_star(grid: &Grid, start: Vector2, end: Vector2) -> Option<Vec<Vector2>> {
+pub fn a_star(grid: &Grid, start: Vector2, end: Vector2, already_on_start: bool) -> Option<Vec<Vector2>> {
     let mut open_set = BinaryHeap::new(); // Sorts frontier by the minimum f-scores.
     open_set.push(State{position: start, f_score: Vector2::side_distance(start, end)});
 
@@ -38,7 +38,7 @@ pub fn a_star(grid: &Grid, start: Vector2, end: Vector2) -> Option<Vec<Vector2>>
         if current.is_none() { break; } //Shouldn't happen.
         let current = current.unwrap();
 
-        if current.position == end { return Some(reconstruct_path(came_from, current.position)); } // If current is the end, return the path. 
+        if current.position == end { return Some(reconstruct_path(came_from, current.position, already_on_start)); } // If current is the end, return the path. 
 
         for direction in Direction::directions() { // Calculate f-scores for all valid neighbors.
             let direction = {
@@ -72,12 +72,15 @@ pub fn a_star(grid: &Grid, start: Vector2, end: Vector2) -> Option<Vec<Vector2>>
 }
 
 /// Reconstructs the path found from the a-star algorithm. Path is in reverse order, so use pop to navigate it.
-fn reconstruct_path(came_from: HashMap<Vector2, Vector2>, current: Vector2) -> Vec<Vector2> {
+fn reconstruct_path(came_from: HashMap<Vector2, Vector2>, current: Vector2, already_on_start: bool) -> Vec<Vector2> {
     let mut current = current;
     let mut path = vec![current];
     while came_from.contains_key(&current) {
         current = *came_from.get(&current).unwrap(); //It shouldn't be none since contains_key is checked beforehand.
         path.push(current);
     }
+
+    if already_on_start { path.pop(); } // Remove the start from the path if we're already there.
+
     path
 }
