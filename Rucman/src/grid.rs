@@ -139,7 +139,7 @@ pub mod grid {
                             Ok(self.maze[row][col]) 
                         },
                     GridPoint::Empty => Ok(GridPoint::Empty),
-                    _ => {Err(GridPointError::InconsumableError(self.maze[row][col]))},
+                    _ => {return Err(GridPointError::InconsumableError(self.maze[row][col]))},
                 }
             };
 
