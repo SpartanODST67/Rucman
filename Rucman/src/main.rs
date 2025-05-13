@@ -30,16 +30,18 @@ struct EntityManager {
     ghosts: Arc<Mutex<Vec<CharacterData>>>,
 }
 
-/// Stores score information and data that is affected by score.
-struct ScoreManager {
+/// Manages all numerical number.
+struct NumberManager {
     level: u32,
     score: u32,
     one_up_score: u32,
     lives: u8,
     scatter_interval: u128,
+    vulnerability_length: u32,
+    vulernability_timer: u32,
 }
 
-impl ScoreManager {
+impl NumberManager {
     /// Adds provided points to score. Gives a life if one up score is achieved.
     fn add_score(&mut self, score: u32) {
         if score <= 0 { return; }
@@ -68,6 +70,42 @@ impl ScoreManager {
         self.lives -= 1;
         self.remove_score(150);
     }
+
+    /// Updates timers to new level.
+    fn level_up(&mut self) {
+        self.add_score(1000);
+        self.shorten_vulnerability();
+        self.lengthen_scatter_interval();
+    }
+
+    /// Shortens vulnerabilty window by 1 second and floors it at 2 seconds.
+    fn shorten_vulnerability(&mut self) {
+        self.vulnerability_length -= 4;
+        if self.vulnerability_length < 8 { self.vulnerability_length = 8; } // Min at 2 seconds.
+    }
+
+    /// Sets vulnerability timer to vulnerability length.
+    fn start_vulnerability_timer(&mut self) {
+        self.vulernability_timer = self.vulnerability_length;
+    }
+
+    /// Lowers vulnerability timer by 1 frame.
+    fn tick_vulernability_timer(&mut self) {
+        if self.vulernability_timer == 0 {return;}
+
+        self.vulernability_timer -= 1;
+    }
+
+    /// Returns true if vulnerability timer is 0.
+    fn is_vulnerability_over(&self) -> bool {
+        self.vulernability_timer == 0
+    }
+
+    /// Doubles the length of scatter interval. Maxes at 30 seconds.
+    fn lengthen_scatter_interval(&mut self) {
+        self.scatter_interval *= 2;
+        if self.scatter_interval > 120 {self.scatter_interval = 120;} // Max out at 30 seconds.
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -95,22 +133,22 @@ fn main() -> io::Result<()> {
         ghosts: Arc::new(Mutex::new(ghosts)), 
     };
 
-    let mut score_manager = ScoreManager {
+    let mut number_manager = NumberManager {
         level: 1,
         score: 0,
         one_up_score: 1000,
         lives: 3,
         scatter_interval: 40,
+        vulnerability_length: 28,
+        vulernability_timer: 0,
     };
 
-    let mut vulnerability_timer: u32 = 0;
-    let mut vulnerability_length: u32 = 28;
     let mut frames: u128 = 0;
 
     let input_thread = create_input_controller(&entity_manager);
 
     // Main game loop.
-    while score_manager.lives > 0 {        
+    while number_manager.lives > 0 {        
         if input_thread.is_finished() { break; } // Stop the game if input thread is ever finished.
 
         // Get the ability to modify rucman and the ghosts.
@@ -126,13 +164,13 @@ fn main() -> io::Result<()> {
         match eatten {
             Ok(pellet) => {
                 match pellet {
-                    GridPoint::Pellet => score_manager.add_score(5),
+                    GridPoint::Pellet => number_manager.add_score(5),
                     GridPoint::PowerPellet => {
                         for ghost in ghosts.iter_mut() {
                             ghost.set_vulnerable();
                         }
-                        vulnerability_timer = vulnerability_length;
-                        score_manager.add_score(10);
+                        number_manager.start_vulnerability_timer();
+                        number_manager.add_score(10);
                     },
                     _ => {}, // GridPoint empty and anything that eat doesn't denote as inedible.
                 }
@@ -151,8 +189,8 @@ fn main() -> io::Result<()> {
         }
 
         // Check if rucman ran into a ghost.
-        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
-            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut number_manager) {
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &number_manager)?;
             execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
             sleep(three_seconds);
             reset_characters(&mut rucman, &mut ghosts);
@@ -166,7 +204,7 @@ fn main() -> io::Result<()> {
                     if frames % 2 == 0 {
                         ghost.ghost_move(&mut grid, rucman.get_position(), rucman.get_direction());
                     }
-                    if vulnerability_timer == 0 {
+                    if number_manager.is_vulnerability_over() {
                         ghost.set_invulnerable();
                     }
                 }
@@ -175,20 +213,20 @@ fn main() -> io::Result<()> {
 
         // Copy and pasted.
         // Check if a ghost ran into rucman.
-        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
-            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut number_manager) {
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &number_manager)?;
             execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
             sleep(three_seconds);
             reset_characters(&mut rucman, &mut ghosts);
         }
 
         // Update time data.
-        if vulnerability_timer > 0 { vulnerability_timer -= 1; }
+        number_manager.tick_vulernability_timer();
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
         else { frames += 1; }
 
         // Scatter ghosts on time.
-        if frames % score_manager.scatter_interval == 0 {
+        if frames % number_manager.scatter_interval == 0 {
             for ghost in ghosts.iter_mut() {
                 ghost.set_scatter_mode();
             }
@@ -196,20 +234,16 @@ fn main() -> io::Result<()> {
 
         // Level completion.
         if grid.pellets_left() == 0 { 
-            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &number_manager)?;
             execute!(stdout, Print("Level complete!"))?;
             sleep(three_seconds);
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
 
             // Level up
-            // TODO: Abstract this.
-            score_manager.add_score(1000);
-            vulnerability_length -= 4;
-            if vulnerability_length < 8 { vulnerability_length = 8; }
-            score_manager.scatter_interval *= 2;
+            number_manager.level_up();
         }
 
-        print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+        print_screen(&mut stdout, &grid, &rucman, &ghosts, &number_manager)?;
         
         // Frees up locks
         drop(rucman);
@@ -220,7 +254,7 @@ fn main() -> io::Result<()> {
         sleep(frame_sleep);
     }
 
-    execute!(stdout, Print(format!("Game over! Score: {}\n", score_manager.score)))?;
+    execute!(stdout, Print(format!("Game over! Score: {}\n", number_manager.score)))?;
 
     // Make sure we don't get an orphan thread.
     if !input_thread.is_finished() {
@@ -234,7 +268,7 @@ fn main() -> io::Result<()> {
 }
 
 /// Prints the screen
-fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
+fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &NumberManager) -> io::Result<()> {        
     let level = score_manager.level;
     let score = score_manager.score;
     let lives = score_manager.lives;
@@ -288,7 +322,7 @@ fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts
 
 /// Checks for collisions between rucman and the ghosts and handles the cases for vulnerable and invulnerable ghosts.
 /// Returns a character if rucman collided with an invulnerable ghost.
-fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) -> Option<Character> {
+fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut NumberManager) -> Option<Character> {
     for ghost in ghosts.iter_mut() {
         if ghost.get_position() == rucman.get_position() {
             match ghost.get_vulnerability() {
