@@ -68,7 +68,7 @@ fn main() -> io::Result<()> {
     enable_raw_mode()?;
 
     let mut stdout = stdout();
-    let frame_sleep = Duration::new(0, 266666672);
+    let frame_sleep = Duration::new(0, 250_000_000);
     let three_seconds = Duration::new(3, 0);
 
     let grid = Grid::new();
@@ -92,11 +92,11 @@ fn main() -> io::Result<()> {
         score: 0,
         one_up_score: 1000,
         lives: 3,
-        scatter_interval: 75,
+        scatter_interval: 40,
     };
 
     let mut vulnerability_timer: u32 = 0;
-    let mut vulnerability_length: u32 = 90;
+    let mut vulnerability_length: u32 = 28;
     let mut frames: u128 = 0;
 
     let input_thread = create_input_controller(&entity_manager);
@@ -184,7 +184,8 @@ fn main() -> io::Result<()> {
             sleep(three_seconds);
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
             score_manager.add_score(1000);
-            vulnerability_length -= 1;
+            vulnerability_length -= 4;
+            if vulnerability_length < 8 { vulnerability_length = 8; }
             score_manager.scatter_interval *= 2;
         }
 
