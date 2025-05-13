@@ -23,12 +23,14 @@ use character::{Character, CharacterData, Vulnerability};
 
 mod a_star;
 
+/// Stores mutable pointers to the characters and maze.
 struct EntityManager {
     grid: Arc<Mutex<Grid>>,
     rucman: Arc<Mutex<CharacterData>>,
     ghosts: Arc<Mutex<Vec<CharacterData>>>,
 }
 
+/// Stores score information and data that is affected by score.
 struct ScoreManager {
     level: u32,
     score: u32,
@@ -38,6 +40,7 @@ struct ScoreManager {
 }
 
 impl ScoreManager {
+    /// Adds provided points to score. Gives a life if one up score is achieved.
     fn add_score(&mut self, score: u32) {
         if score <= 0 { return; }
 
@@ -48,6 +51,7 @@ impl ScoreManager {
         }
     }
 
+    /// Removes provided points from score. Prevents overflow.
     fn remove_score(&mut self, score: u32) {
         if self.score < score { 
             self.score = 0;
@@ -57,7 +61,10 @@ impl ScoreManager {
         self.score -= score;
     }
 
+    /// Removes a life.
     fn lose_life(&mut self) {
+        if self.lives == 0 { return; }
+        
         self.lives -= 1;
         self.remove_score(150);
     }
@@ -65,6 +72,7 @@ impl ScoreManager {
 
 fn main() -> io::Result<()> {
 
+    // Initialize data and game environment.
     enable_raw_mode()?;
 
     let mut stdout = stdout();
@@ -101,13 +109,16 @@ fn main() -> io::Result<()> {
 
     let input_thread = create_input_controller(&entity_manager);
 
+    // Main game loop.
     while score_manager.lives > 0 {        
-        if input_thread.is_finished() { break; }
+        if input_thread.is_finished() { break; } // Stop the game if input thread is ever finished.
 
+        // Get the ability to modify rucman and the ghosts.
         let mut rucman = entity_manager.rucman.lock().unwrap();
         let mut ghosts = entity_manager.ghosts.lock().unwrap();
         let mut grid = entity_manager.grid.lock().unwrap();
 
+        // Move rucman (rucman's direction is controlled by the thread.)
         rucman.rucman_move(&grid);
 
         //Eat pellets
@@ -123,14 +134,14 @@ fn main() -> io::Result<()> {
                         vulnerability_timer = vulnerability_length;
                         score_manager.add_score(10);
                     },
-                    _ => {},
+                    _ => {}, // GridPoint empty and anything that eat doesn't denote as inedible.
                 }
             },
             Err(invalid) => {
                 match invalid {
                     GridPointError::InconsumableError(attempt) => {
                         match attempt {
-                            GridPoint::Teleporter(other) => rucman.set_position(other),
+                            GridPoint::Teleporter(other) => rucman.set_position(other), // Should be the only inediable object to worry about.
                             _ => {},
                         }
                     }
@@ -139,6 +150,7 @@ fn main() -> io::Result<()> {
             },
         }
 
+        // Check if rucman ran into a ghost.
         if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
             print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
             execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
@@ -150,7 +162,7 @@ fn main() -> io::Result<()> {
         for ghost in ghosts.iter_mut() {
             match ghost.get_vulnerability() {
                 Vulnerability::Invulnerable => ghost.ghost_move(&mut grid, rucman.get_position(), rucman.get_direction()),
-                Vulnerability::Vulnerable => {
+                Vulnerability::Vulnerable => { // To make vulnerable ghosts slower, they only move on even frames.
                     if frames % 2 == 0 {
                         ghost.ghost_move(&mut grid, rucman.get_position(), rucman.get_direction());
                     }
@@ -161,6 +173,8 @@ fn main() -> io::Result<()> {
             }            
         }
 
+        // Copy and pasted.
+        // Check if a ghost ran into rucman.
         if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
             print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
             execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
@@ -168,21 +182,27 @@ fn main() -> io::Result<()> {
             reset_characters(&mut rucman, &mut ghosts);
         }
 
+        // Update time data.
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
         else { frames += 1; }
 
+        // Scatter ghosts on time.
         if frames % score_manager.scatter_interval == 0 {
             for ghost in ghosts.iter_mut() {
                 ghost.set_scatter_mode();
             }
         }
 
+        // Level completion.
         if grid.pellets_left() == 0 { 
             print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
             execute!(stdout, Print("Level complete!"))?;
             sleep(three_seconds);
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
+
+            // Level up
+            // TODO: Abstract this.
             score_manager.add_score(1000);
             vulnerability_length -= 4;
             if vulnerability_length < 8 { vulnerability_length = 8; }
@@ -191,19 +211,23 @@ fn main() -> io::Result<()> {
 
         print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
         
-        //Frees up locks
+        // Frees up locks
         drop(rucman);
         drop(grid);
         drop(ghosts);
 
+        // So the game doesn't do every frame in a single frame.
         sleep(frame_sleep);
     }
 
     execute!(stdout, Print(format!("Game over! Score: {}\n", score_manager.score)))?;
+
+    // Make sure we don't get an orphan thread.
     if !input_thread.is_finished() {
         execute!(stdout, Print(format!("Press Ctrl+C to end game.\n")))?;
         let _ = input_thread.join();
     }
+
     disable_raw_mode()?;
 
     Ok(())
@@ -229,10 +253,11 @@ fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts
         pass_one.push(row_collect);
     }
 
-    //Place the ghosts and rucman over the maze (the subjects)
+    // Place the ghosts and rucman over the maze (the subjects)
     let pos = rucman.get_position();
     pass_one[pos.1 as usize][pos.0 as usize] = char::from(rucman);
     
+    // Ghosts second so they overlap Rucman so its obvious when rucman is dead.
     for ghost in ghosts {
         let pos = ghost.get_position();
         pass_one[pos.1 as usize][pos.0 as usize] = char::from(ghost);
@@ -262,6 +287,7 @@ fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts
 }
 
 /// Checks for collisions between rucman and the ghosts and handles the cases for vulnerable and invulnerable ghosts.
+/// Returns a character if rucman collided with an invulnerable ghost.
 fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) -> Option<Character> {
     for ghost in ghosts.iter_mut() {
         if ghost.get_position() == rucman.get_position() {
@@ -314,24 +340,26 @@ fn create_input_controller(game_manager: &EntityManager) -> JoinHandle<()> {
                     Event::Key(key) => {
                         if !key.is_release() {
                             match key.code {
+                                // Directional inputs.
                                 KeyCode::Char('w') => rucman.lock().unwrap().set_direction_if_valid(Direction::up(), &grid.lock().unwrap()),
                                 KeyCode::Char('a') => rucman.lock().unwrap().set_direction_if_valid(Direction::left(), &grid.lock().unwrap()),
                                 KeyCode::Char('s') => rucman.lock().unwrap().set_direction_if_valid(Direction::down(), &grid.lock().unwrap()),
                                 KeyCode::Char('d') => rucman.lock().unwrap().set_direction_if_valid(Direction::right(), &grid.lock().unwrap()),
                                 
-                                KeyCode::Char('c') | KeyCode::Char('q') => {
+                                // Control inputs.
+                                KeyCode::Char('c') | KeyCode::Char('q') => { // Quit
                                     match key.modifiers {
                                         KeyModifiers::CONTROL => break,
                                         _ => {}
                                     }
                                 },
 
-                                _ => {},
+                                _ => {}, // Ignore all other keys.
                             }
                         }
                     },
 
-                    _ => {}
+                    _ => {} // Ignore all other events
                 }
             }
             Err(err) => {

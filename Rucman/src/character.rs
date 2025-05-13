@@ -85,7 +85,7 @@ impl From<&CharacterData> for char {
 impl CharacterData {
     /// Creates and initializes new character data depending on the provided character.
     pub fn new(character: Character) -> Self {
-        let position = match character {
+        let position = match character { // Starting position of each character.
             Character::Inky => Vector2(12, 11),
             Character::Blinky => Vector2(13, 9),
             Character::Pinky => Vector2(13, 11),
@@ -93,7 +93,7 @@ impl CharacterData {
             Character::Rucman => Vector2(13, 20),
         };
 
-        let scatter_position = match character {
+        let scatter_position = match character { // Position each character goes to during scatter mode.
             Character::Inky => Vector2(25, 25),
             Character::Blinky => Vector2(25, 1),
             Character::Pinky => Vector2(1, 1),
@@ -300,6 +300,7 @@ impl CharacterData {
 mod test {
     use super::*;
 
+    /// Tests if character data creation works properly.
     #[test]
     fn test_character_data_creation() {
         assert_eq!(CharacterData::new(Character::Rucman), CharacterData{position: Vector2(13, 20), scatter_position: Vector2(0, 0), nav_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Rucman});
@@ -309,6 +310,7 @@ mod test {
         assert_eq!(CharacterData::new(Character::Clyde), CharacterData{position: Vector2(14, 11), scatter_position: Vector2(1, 25), nav_path: vec![], facing_direction: Direction::right(), vulnerability: Vulnerability::Invulnerable, ghost_mode: GhostMode::Scatter, character: Character::Clyde});
     }
 
+    /// Tests if character's position is set properly.
     #[test]
     fn test_set_position() {
         let mut test_char = CharacterData::new(Character::Rucman);
@@ -318,6 +320,7 @@ mod test {
         assert_eq!(test_char.position, Vector2(-1, -1));
     }
 
+    /// Tests if a character's direction is set properly.
     #[test]
     fn test_set_direction() {
         let mut test_char = CharacterData::new(Character::Rucman);
@@ -332,6 +335,7 @@ mod test {
         assert_eq!(test_char.facing_direction, Direction::right());
     }
 
+    /// Tests if calculate_facing_direction properly calculates a position according to set direction.
     #[test]
     fn test_calculate_facing_direction() {
         let mut test_char = CharacterData::new(Character::Rucman);

@@ -1,3 +1,4 @@
+// This was my first external module, so I was still figuring out the system :)
 pub mod grid {
     use std::collections::VecDeque;
 
@@ -155,7 +156,7 @@ pub mod grid {
                             Ok(self.maze[row][col]) 
                         },
                     GridPoint::Empty => Ok(GridPoint::Empty),
-                    _ => {return Err(GridPointError::InconsumableError(self.maze[row][col]))},
+                    _ => {return Err(GridPointError::InconsumableError(self.maze[row][col]))}, // Early return so we don't eat the inedible.
                 }
             };
 
@@ -172,21 +173,28 @@ pub mod grid {
 
     impl From<Vec<Vec<char>>> for Grid {
         fn from(value: Vec<Vec<char>>) -> Self {
+            // Meta data
             let mut grid = Vec::new();
             let mut open_spaces = VecDeque::new();
             let mut pellets_left = 0;
 
+            // Rng is here instead at get_random_position in order to not deal with thread safety.
             let mut rng = rand::rng();
 
-            let mut row_num = 0;
+            let mut row_num = 0; // Y cord
             for row in value {
                 let mut row_collection = Vec::new();
-                let mut col_num = 0;
+                let mut col_num = 0; // X cord
                 for col in row {
                     let grid_point: GridPoint = col.into();
                     match grid_point {
                         GridPoint::Pellet | GridPoint::PowerPellet => {
                             pellets_left += 1;
+                            
+                            // "Randomly" shuffle open spaces.
+                            // A pattern is generated where higher and leftmost spaces are more central to the vec
+                            // and that lower and rightmost spaces are more outter to the vec, but it serves its
+                            // purpose for making a "random" position.
                             if rng.random::<u32>() % 2 == 0 {open_spaces.push_back(Vector2(col_num, row_num));}
                             else { open_spaces.push_front(Vector2(col_num, row_num)); }
                         },

@@ -78,6 +78,7 @@ impl Vector2 {
 mod tests {
     use super::*;
 
+    /// Tests Vector2 addition.
     #[test]
     fn test_add() {
         assert_eq!(Vector2(0, 0) + Vector2(1, 1), Vector2(1, 1));
@@ -88,6 +89,7 @@ mod tests {
         assert_eq!(Vector2(-1, -1) + Vector2(1, 1), Vector2(0, 0));
     }
 
+    /// Tests Vector2 subtraction.
     #[test]
     fn test_sub() {
         assert_eq!(Vector2(0, 0) - Vector2(1, 1), Vector2(-1, -1));
@@ -98,6 +100,7 @@ mod tests {
         assert_eq!(Vector2(-1, -1) - Vector2(1, 1), Vector2(-2, -2));
     }
 
+    /// Tests if points forward from direction are calculated properly.
     #[test]
     fn test_forward() {
         let mut origin = Vector2(0, 0);
@@ -113,6 +116,7 @@ mod tests {
         assert_eq!(origin, Vector2(0, -2));
     }
 
+    /// Tests if points backward from direction are calculated properly.
     #[test]
     fn test_back() {
         let mut origin = Vector2(0, 0);
@@ -128,6 +132,7 @@ mod tests {
         assert_eq!(origin, Vector2(0, 2));
     }
 
+    /// Tests if linear distance is calculated properly.
     #[test]
     fn test_dist() {
         assert_eq!(Vector2::distance(Vector2(0, 0), Vector2(1, 1)), 1.41421356237);
@@ -138,6 +143,7 @@ mod tests {
         assert_eq!(Vector2::distance(Vector2(2, -1), Vector2(2, 1)), 2.0);
     }
 
+    /// Tests if heuristic distance is calculated properly.
     #[test]
     fn test_side_dist() {
         assert_eq!(Vector2::side_distance(Vector2(0, 0), Vector2(1, 1)), 2);
