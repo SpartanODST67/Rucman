@@ -23,90 +23,8 @@ use character::{Character, CharacterData, Vulnerability};
 
 mod a_star;
 
-/// Stores mutable pointers to the characters and maze.
-struct EntityManager {
-    grid: Arc<Mutex<Grid>>,
-    rucman: Arc<Mutex<CharacterData>>,
-    ghosts: Arc<Mutex<Vec<CharacterData>>>,
-}
-
-/// Manages all numerical number.
-struct NumberManager {
-    level: u32,
-    score: u32,
-    one_up_score: u32,
-    lives: u8,
-    scatter_interval: u128,
-    vulnerability_length: u32,
-    vulernability_timer: u32,
-}
-
-impl NumberManager {
-    /// Adds provided points to score. Gives a life if one up score is achieved.
-    fn add_score(&mut self, score: u32) {
-        if score <= 0 { return; }
-
-        self.score += score;
-        if self.score >= self.one_up_score {
-            self.one_up_score *= 2;
-            self.lives += 1;
-        }
-    }
-
-    /// Removes provided points from score. Prevents overflow.
-    fn remove_score(&mut self, score: u32) {
-        if self.score < score { 
-            self.score = 0;
-            return;
-        }
-
-        self.score -= score;
-    }
-
-    /// Removes a life.
-    fn lose_life(&mut self) {
-        if self.lives == 0 { return; }
-        
-        self.lives -= 1;
-        self.remove_score(150);
-    }
-
-    /// Updates timers to new level.
-    fn level_up(&mut self) {
-        self.add_score(1000);
-        self.shorten_vulnerability();
-        self.lengthen_scatter_interval();
-    }
-
-    /// Shortens vulnerabilty window by 1 second and floors it at 2 seconds.
-    fn shorten_vulnerability(&mut self) {
-        self.vulnerability_length -= 4;
-        if self.vulnerability_length < 8 { self.vulnerability_length = 8; } // Min at 2 seconds.
-    }
-
-    /// Sets vulnerability timer to vulnerability length.
-    fn start_vulnerability_timer(&mut self) {
-        self.vulernability_timer = self.vulnerability_length;
-    }
-
-    /// Lowers vulnerability timer by 1 frame.
-    fn tick_vulernability_timer(&mut self) {
-        if self.vulernability_timer == 0 {return;}
-
-        self.vulernability_timer -= 1;
-    }
-
-    /// Returns true if vulnerability timer is 0.
-    fn is_vulnerability_over(&self) -> bool {
-        self.vulernability_timer == 0
-    }
-
-    /// Doubles the length of scatter interval. Maxes at 30 seconds.
-    fn lengthen_scatter_interval(&mut self) {
-        self.scatter_interval *= 2;
-        if self.scatter_interval > 120 {self.scatter_interval = 120;} // Max out at 30 seconds.
-    }
-}
+mod managers;
+use managers::{EntityManager, NumberManager};
 
 fn main() -> io::Result<()> {
 
@@ -133,22 +51,14 @@ fn main() -> io::Result<()> {
         ghosts: Arc::new(Mutex::new(ghosts)), 
     };
 
-    let mut number_manager = NumberManager {
-        level: 1,
-        score: 0,
-        one_up_score: 1000,
-        lives: 3,
-        scatter_interval: 40,
-        vulnerability_length: 28,
-        vulernability_timer: 0,
-    };
+    let mut number_manager = NumberManager::new();
 
     let mut frames: u128 = 0;
 
     let input_thread = create_input_controller(&entity_manager);
 
     // Main game loop.
-    while number_manager.lives > 0 {        
+    while number_manager.get_lives() > 0 {        
         if input_thread.is_finished() { break; } // Stop the game if input thread is ever finished.
 
         // Get the ability to modify rucman and the ghosts.
@@ -226,7 +136,7 @@ fn main() -> io::Result<()> {
         else { frames += 1; }
 
         // Scatter ghosts on time.
-        if frames % number_manager.scatter_interval == 0 {
+        if frames % number_manager.get_scatter_interval() == 0 {
             for ghost in ghosts.iter_mut() {
                 ghost.set_scatter_mode();
             }
@@ -254,7 +164,7 @@ fn main() -> io::Result<()> {
         sleep(frame_sleep);
     }
 
-    execute!(stdout, Print(format!("Game over! Score: {}\n", number_manager.score)))?;
+    execute!(stdout, Print(format!("Game over! Score: {}\n", number_manager.get_score())))?;
 
     // Make sure we don't get an orphan thread.
     if !input_thread.is_finished() {
@@ -269,10 +179,10 @@ fn main() -> io::Result<()> {
 
 /// Prints the screen
 fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &NumberManager) -> io::Result<()> {        
-    let level = score_manager.level;
-    let score = score_manager.score;
-    let lives = score_manager.lives;
-    let one_up_score = score_manager.one_up_score;
+    let level = score_manager.get_level();
+    let score = score_manager.get_score();
+    let lives = score_manager.get_lives();
+    let one_up_score = score_manager.get_one_up_score();
 
     let mut pass_one = Vec::new();
 
