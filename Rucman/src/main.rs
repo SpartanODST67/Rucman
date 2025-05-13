@@ -6,7 +6,7 @@ use crossterm::style::Print;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use std::io::{self, stdout, stderr};
+use std::io::{self, Stdout, stdout, stderr};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 
@@ -66,6 +66,10 @@ impl ScoreManager {
 fn main() -> io::Result<()> {
 
     enable_raw_mode()?;
+
+    let mut stdout = stdout();
+    let frame_sleep = Duration::new(0, 266666672);
+    let three_seconds = Duration::new(3, 0);
 
     let grid = Grid::new();
 
@@ -136,9 +140,9 @@ fn main() -> io::Result<()> {
         }
 
         if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
-            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
-            execute!(stdout(), Print(format!("Caught by: {:?}", ghost)))?;
-            sleep(Duration::new(3, 0));
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
+            sleep(three_seconds);
             reset_characters(&mut rucman, &mut ghosts);
         }
 
@@ -158,9 +162,9 @@ fn main() -> io::Result<()> {
         }
 
         if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
-            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
-            execute!(stdout(), Print(format!("Caught by: {:?}", ghost)))?;
-            sleep(Duration::new(3, 0));
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout, Print(format!("Caught by: {:?}", ghost)))?;
+            sleep(three_seconds);
             reset_characters(&mut rucman, &mut ghosts);
         }
 
@@ -175,28 +179,28 @@ fn main() -> io::Result<()> {
         }
 
         if grid.pellets_left() == 0 { 
-            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
-            execute!(stdout(), Print("Level complete!"))?;
-            sleep(Duration::new(1, 0));
+            print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout, Print("Level complete!"))?;
+            sleep(three_seconds);
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
             score_manager.add_score(1000);
             vulnerability_length -= 1;
             score_manager.scatter_interval *= 2;
         }
 
-        print_screen(&grid, &rucman, &ghosts, &score_manager)?;
+        print_screen(&mut stdout, &grid, &rucman, &ghosts, &score_manager)?;
         
         //Frees up locks
         drop(rucman);
         drop(grid);
         drop(ghosts);
 
-        sleep(Duration::new(0, 266666672));
+        sleep(frame_sleep);
     }
 
-    execute!(stdout(), Print(format!("Game over! Score: {}\n", score_manager.score)))?;
+    execute!(stdout, Print(format!("Game over! Score: {}\n", score_manager.score)))?;
     if !input_thread.is_finished() {
-        execute!(stdout(), Print(format!("Press Ctrl+C to end game.\n")))?;
+        execute!(stdout, Print(format!("Press Ctrl+C to end game.\n")))?;
         let _ = input_thread.join();
     }
     disable_raw_mode()?;
@@ -205,7 +209,7 @@ fn main() -> io::Result<()> {
 }
 
 /// Prints the screen
-fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
+fn print_screen(stdout: &mut Stdout, grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
     let level = score_manager.level;
     let score = score_manager.score;
     let lives = score_manager.lives;
@@ -252,7 +256,7 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
         i += 1;
     }
 
-    execute!(stdout(), Clear(ClearType::All), cursor::MoveTo(0, 0), Print(result_string))?;
+    execute!(stdout, Clear(ClearType::All), cursor::MoveTo(0, 0), Print(result_string))?;
     Ok(())
 }
 
