@@ -88,6 +88,7 @@ impl NumberManager {
 
     /// Updates timers to new level.
     pub fn level_up(&mut self) {
+        self.level += 1;
         self.add_score(1000);
         self.shorten_vulnerability();
         self.lengthen_scatter_interval();
