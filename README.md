@@ -1,5 +1,6 @@
 <h1>🟡 Rucman</h1>
 Everyone's favorite maze mucher who has absolutely zero likeness to a certain yellow fella.
+<br><br><b>‼️Epilepsy Warning‼️</b>: Frames are shown by rapidly clearing and printing to the terminal and may cause a flashing effect. Do not play if you have epilespy.
 
 <h2>How to play⁉️</h2>
 Rucman navigates the maze by going directly forward to the direction he's facing.
