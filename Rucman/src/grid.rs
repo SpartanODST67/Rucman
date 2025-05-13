@@ -1,4 +1,6 @@
 pub mod grid {
+    use std::collections::VecDeque;
+
     use rand::prelude::*;
     use crate::point::Vector2;
 
@@ -46,7 +48,7 @@ pub mod grid {
     #[derive(Debug)]
     pub struct Grid {
         maze: Vec<Vec<GridPoint>>,
-        open_spaces: Vec<Vector2>,
+        open_spaces: VecDeque<Vector2>,
         width: usize,
         height: usize,
         pellets_left: u32,
@@ -111,8 +113,8 @@ pub mod grid {
 
         /// Retrieves a random valid position of the maze.
         pub fn get_random_position(&mut self) -> Vector2 {
-            let dest = self.open_spaces.pop().unwrap();
-            self.open_spaces.push(dest);
+            let dest = self.open_spaces.pop_front().unwrap();
+            self.open_spaces.push_back(dest);
             dest
         }
 
@@ -171,8 +173,10 @@ pub mod grid {
     impl From<Vec<Vec<char>>> for Grid {
         fn from(value: Vec<Vec<char>>) -> Self {
             let mut grid = Vec::new();
-            let mut open_spaces = Vec::new();
+            let mut open_spaces = VecDeque::new();
             let mut pellets_left = 0;
+
+            let mut rng = rand::rng();
 
             let mut row_num = 0;
             for row in value {
@@ -183,9 +187,13 @@ pub mod grid {
                     match grid_point {
                         GridPoint::Pellet | GridPoint::PowerPellet => {
                             pellets_left += 1;
-                            open_spaces.push(Vector2(col_num, row_num));
+                            if rng.random::<u32>() % 2 == 0 {open_spaces.push_back(Vector2(col_num, row_num));}
+                            else { open_spaces.push_front(Vector2(col_num, row_num)); }
                         },
-                        GridPoint::Empty => open_spaces.push(Vector2(col_num, row_num)),
+                        GridPoint::Empty => {
+                            if rng.random::<u32>() % 2 == 0 {open_spaces.push_back(Vector2(col_num, row_num));}
+                            else { open_spaces.push_front(Vector2(col_num, row_num)); }
+                        },
                         _ => {},
                     }
                     col_num += 1;
@@ -194,8 +202,6 @@ pub mod grid {
                 row_num += 1;
                 grid.push(row_collection);
             }
-
-            open_spaces.shuffle(&mut rand::rng());
 
             Grid {
                 width: grid[0].len(),
@@ -224,9 +230,14 @@ pub mod grid {
         fn random_pos() {
             let mut grid = Grid::new();
             let n = grid.open_spaces.len();
+            let mut previous_pos = None;
             for _ in 0..n {
                 let pos = grid.get_random_position();
                 assert!(grid.is_valid_pos(&pos));
+                if previous_pos.is_some() {
+                    assert_ne!(previous_pos.unwrap(), pos);
+                }
+                previous_pos = Some(pos);
             }
         }
 
