@@ -30,6 +30,7 @@ struct EntityManager {
 }
 
 struct ScoreManager {
+    level: u32,
     score: u32,
     one_up_score: u32,
     lives: u8,
@@ -83,6 +84,7 @@ fn main() -> io::Result<()> {
     };
 
     let mut score_manager = ScoreManager {
+        level: 1,
         score: 0,
         one_up_score: 1000,
         lives: 3,
@@ -173,6 +175,9 @@ fn main() -> io::Result<()> {
         }
 
         if grid.pellets_left() == 0 { 
+            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout(), Print("Level complete!"))?;
+            sleep(Duration::new(1, 0));
             reset_game(&mut grid, &mut rucman, &mut ghosts); 
             score_manager.add_score(1000);
             vulnerability_length -= 1;
@@ -201,6 +206,7 @@ fn main() -> io::Result<()> {
 
 /// Prints the screen
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
+    let level = score_manager.level;
     let score = score_manager.score;
     let lives = score_manager.lives;
     let one_up_score = score_manager.one_up_score;
@@ -232,9 +238,14 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     let mut i = 0;
     for row in pass_one {
         let mut row_string: String = row.iter().collect();
-        if i == 1 { row_string.push_str(format!(" Score: {score}").as_str()); }
-        if i == 2 { row_string.push_str(format!(" Lives: {lives}").as_str()); }
-        if i == 3 { row_string.push_str(format!(" One up at: {one_up_score}").as_str());}
+        match i {
+            1 => row_string.push_str(format!(" Level: {level}").as_str()),
+            2 => row_string.push_str(format!(" Score: {score}").as_str()),
+            3 => row_string.push_str(format!(" Lives: {lives}").as_str()),
+            4 => row_string.push_str(format!(" One up at: {one_up_score}").as_str()),
+            _ => {}
+        }
+        
         row_string.push('\n');
 
         result_string.push_str(&row_string);
