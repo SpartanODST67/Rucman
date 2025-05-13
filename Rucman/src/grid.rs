@@ -219,6 +219,17 @@ pub mod grid {
             assert!(grid.is_valid_pos(&Vector2(1, 1)));
         }
 
+        /// Tests if every random pos is a valid pos.
+        #[test]
+        fn random_pos() {
+            let mut grid = Grid::new();
+            let n = grid.open_spaces.len();
+            for _ in 0..n {
+                let pos = grid.get_random_position();
+                assert!(grid.is_valid_pos(&pos));
+            }
+        }
+
         /// Tests if the grid can accurately return false on invalid positions.
         #[test]
         fn invalid_pos() {

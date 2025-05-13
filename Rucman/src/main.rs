@@ -189,6 +189,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
+/// Prints the screen
 fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>, score_manager: &ScoreManager) -> io::Result<()> {        
     let score = score_manager.score;
     let lives = score_manager.lives;
@@ -234,6 +235,7 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     Ok(())
 }
 
+/// Checks for collisions between rucman and the ghosts and handles the cases for vulnerable and invulnerable ghosts.
 fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) {
     for ghost in ghosts.iter_mut() {
         if ghost.get_position() == rucman.get_position() {
@@ -252,11 +254,13 @@ fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, 
     }
 }
 
+/// Resets the maze and characters to their initial state
 fn reset_game(grid: &mut Grid, rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>) {
     *grid = Grid::new();
     reset_characters(rucman, ghosts);
 }
 
+/// Resets all characters to their initial state
 fn reset_characters(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>) {
     reset_character(rucman);
     for ghost in ghosts {
@@ -264,10 +268,14 @@ fn reset_characters(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>)
     }
 }
 
+/// Resets a single character to their inital state
 fn reset_character(character: &mut CharacterData) {
     *character = CharacterData::new(character.get_character());
 }
 
+/// Creates a thread that handles user input.
+/// Directional key presses directly change the direction of Rucman.
+/// Pressing Ctrl+C or Ctrl+Q closes the thread. The game should end if this thread ever closes.
 fn create_input_controller(game_manager: &EntityManager) -> JoinHandle<()> {
     let rucman = game_manager.rucman.clone();
     let grid = game_manager.grid.clone();
