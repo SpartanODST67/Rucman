@@ -1,4 +1,5 @@
 pub mod grid {
+    use rand::prelude::*;
     use crate::point::Vector2;
 
     /// Represents an entity that is a part of the grid.
@@ -45,6 +46,7 @@ pub mod grid {
     #[derive(Debug)]
     pub struct Grid {
         maze: Vec<Vec<GridPoint>>,
+        open_spaces: Vec<Vector2>,
         width: usize,
         height: usize,
         pellets_left: u32,
@@ -102,9 +104,16 @@ pub mod grid {
             self.width
         }
 
-        /// Retrives the full height of the maze.
+        /// Retrieves the full height of the maze.
         pub fn get_height(&self) -> usize {
             self.height
+        }
+
+        /// Retrieves a random valid position of the maze.
+        pub fn get_random_position(&mut self) -> Vector2 {
+            let dest = self.open_spaces.pop().unwrap();
+            self.open_spaces.push(dest);
+            dest
         }
 
         /// Check to see if provided point is a valid position for an entity to be on.
@@ -162,24 +171,37 @@ pub mod grid {
     impl From<Vec<Vec<char>>> for Grid {
         fn from(value: Vec<Vec<char>>) -> Self {
             let mut grid = Vec::new();
+            let mut open_spaces = Vec::new();
             let mut pellets_left = 0;
+
+            let mut row_num = 0;
             for row in value {
                 let mut row_collection = Vec::new();
+                let mut col_num = 0;
                 for col in row {
                     let grid_point: GridPoint = col.into();
                     match grid_point {
-                        GridPoint::Pellet | GridPoint::PowerPellet => pellets_left += 1,
+                        GridPoint::Pellet | GridPoint::PowerPellet => {
+                            pellets_left += 1;
+                            open_spaces.push(Vector2(col_num, row_num));
+                        },
+                        GridPoint::Empty => open_spaces.push(Vector2(col_num, row_num)),
                         _ => {},
                     }
+                    col_num += 1;
                     row_collection.push(grid_point);
                 }
+                row_num += 1;
                 grid.push(row_collection);
             }
+
+            open_spaces.shuffle(&mut rand::rng());
 
             Grid {
                 width: grid[0].len(),
                 height: grid.len(),
                 maze: grid,
+                open_spaces,
                 pellets_left
             }
         }

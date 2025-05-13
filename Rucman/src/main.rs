@@ -138,10 +138,10 @@ fn main() -> io::Result<()> {
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
             match ghost.get_vulnerability() {
-                Vulnerability::Invulnerable => ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction()),
+                Vulnerability::Invulnerable => ghost.ghost_move(&mut grid, rucman.get_position(), rucman.get_direction()),
                 Vulnerability::Vulnerable => {
                     if frames % 2 == 0 {
-                        ghost.ghost_move(&grid, rucman.get_position(), rucman.get_direction());
+                        ghost.ghost_move(&mut grid, rucman.get_position(), rucman.get_direction());
                     }
                     if vulnerability_timer == 0 {
                         ghost.set_invulnerable();
@@ -177,7 +177,6 @@ fn main() -> io::Result<()> {
         drop(ghosts);
 
         sleep(Duration::new(0, 266666672));
-        //sleep(Duration::new(0, 1000000000));
     }
 
     execute!(stdout(), Print(format!("Game over! Score: {}\n", score_manager.score)))?;

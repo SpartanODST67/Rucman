@@ -142,7 +142,7 @@ impl CharacterData {
     }
 
     /// Move based on the current ghost mode.
-    pub fn ghost_move(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
+    pub fn ghost_move(&mut self, grid: &mut Grid, position: Vector2, rucman_direction: Direction) {
         match self.ghost_mode {
             GhostMode::Chase => self.ghost_chase(grid, position, rucman_direction),
             GhostMode::Scatter => self.ghost_scatter(grid),
@@ -150,8 +150,10 @@ impl CharacterData {
     }
 
     /// Move towards the provided position.
-    fn ghost_chase(&mut self, grid: &Grid, position: Vector2, rucman_direction: Direction) {
-        if self.nav_path.len() > 5 {
+    fn ghost_chase(&mut self, grid: &mut Grid, position: Vector2, rucman_direction: Direction) {
+        // Only update path if remaining path is short or you're close to provided position.
+        // So the ghosts aren't as relentless in their chases.
+        if self.nav_path.len() > 5 && Vector2::distance(self.position, position) > 5.0 {
             let next = self.nav_path.pop().unwrap(); //Shouldn't be none since size is already checked.
             self.set_position(next);
             return;
@@ -160,8 +162,8 @@ impl CharacterData {
         // Determine target position
         let target: Vector2 = {
             match self.character {
-                Character::Blinky | Character ::Clyde | Character::Rucman => position,
-                Character::Inky => {
+                Character::Blinky | Character::Rucman => position, // Direct chase
+                Character::Inky => { // 1 behind, slower chase
                     if Vector2::distance(self.position, position) < 2.0 { 
                         position
                     }
@@ -174,8 +176,8 @@ impl CharacterData {
                             ambush
                         }
                     }
-                }, // 1 behind
-                Character::Pinky => {
+                },
+                Character::Pinky => { // 2 ahead, ambush chase
                     if Vector2::distance(self.position, position) < 2.0 { 
                         position 
                     }
@@ -194,7 +196,10 @@ impl CharacterData {
                             cut_off
                         }
                     }
-                }, // 2 forward
+                },
+                Character ::Clyde => { // Random wander.
+                    grid.get_random_position()
+                }
             }
         };
 
