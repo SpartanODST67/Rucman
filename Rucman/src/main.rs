@@ -133,7 +133,12 @@ fn main() -> io::Result<()> {
             },
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score_manager);
+        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
+            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout(), Print(format!("Caught by: {:?}", ghost)))?;
+            sleep(Duration::new(3, 0));
+            reset_characters(&mut rucman, &mut ghosts);
+        }
 
         //Move Ghosts
         for ghost in ghosts.iter_mut() {
@@ -150,7 +155,12 @@ fn main() -> io::Result<()> {
             }            
         }
 
-        check_collision(&mut rucman, &mut ghosts, &mut score_manager);
+        if let Some(ghost) = check_collision(&mut rucman, &mut ghosts, &mut score_manager) {
+            print_screen(&grid, &rucman, &ghosts, &score_manager)?;
+            execute!(stdout(), Print(format!("Caught by: {:?}", ghost)))?;
+            sleep(Duration::new(3, 0));
+            reset_characters(&mut rucman, &mut ghosts);
+        }
 
         if vulnerability_timer > 0 { vulnerability_timer -= 1; }
         if frames == u128::MAX { frames = 0; } //Probably would never happen. Essentially overflow anyway, but this is to define what to happen on overflow.
@@ -209,13 +219,13 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
     }
 
     //Place the ghosts and rucman over the maze (the subjects)
+    let pos = rucman.get_position();
+    pass_one[pos.1 as usize][pos.0 as usize] = char::from(rucman);
+    
     for ghost in ghosts {
         let pos = ghost.get_position();
         pass_one[pos.1 as usize][pos.0 as usize] = char::from(ghost);
     }
-
-    let pos = rucman.get_position();
-    pass_one[pos.1 as usize][pos.0 as usize] = char::from(rucman);
     
     // Convert collected data into strings and print it.
     let mut result_string = String::new();
@@ -236,7 +246,7 @@ fn print_screen(grid: &Grid, rucman: &CharacterData, ghosts: &Vec<CharacterData>
 }
 
 /// Checks for collisions between rucman and the ghosts and handles the cases for vulnerable and invulnerable ghosts.
-fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) {
+fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, score_manager: &mut ScoreManager) -> Option<Character> {
     for ghost in ghosts.iter_mut() {
         if ghost.get_position() == rucman.get_position() {
             match ghost.get_vulnerability() {
@@ -246,12 +256,13 @@ fn check_collision(rucman: &mut CharacterData, ghosts: &mut Vec<CharacterData>, 
                 }
                 Vulnerability::Invulnerable => {
                     score_manager.lose_life();
-                    reset_characters(rucman, ghosts);
-                    break;
+                    return Some(ghost.get_character());
                 }
             }
         }
     }
+
+    None
 }
 
 /// Resets the maze and characters to their initial state

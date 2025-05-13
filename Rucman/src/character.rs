@@ -1,4 +1,5 @@
 use std::vec;
+use std::fmt::Display;
 
 use crate::grid::grid::Grid;
 use crate::a_star;
@@ -38,6 +39,20 @@ impl From<Character> for char {
             Character::Pinky => 'P',
             Character::Clyde => 'C',
         }
+    }
+}
+
+impl Display for Character {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match *self {
+            Character::Rucman => "Rucman",
+            Character::Inky => "Inky",
+            Character::Blinky => "Blinky",
+            Character::Pinky => "Pinky",
+            Character::Clyde => "Clyde",
+        };
+        
+        write!(f, "{}", name)
     }
 }
 
