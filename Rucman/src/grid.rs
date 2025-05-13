@@ -188,17 +188,16 @@ pub mod grid {
                 for col in row {
                     let grid_point: GridPoint = col.into();
                     match grid_point {
-                        GridPoint::Pellet | GridPoint::PowerPellet => {
-                            pellets_left += 1;
-                            
+                        GridPoint::Pellet | GridPoint::PowerPellet | GridPoint:: Empty => {
+                            match grid_point {
+                                GridPoint::Pellet | GridPoint::PowerPellet => pellets_left += 1,
+                                _ => {}
+                            }
+
                             // "Randomly" shuffle open spaces.
                             // A pattern is generated where higher and leftmost spaces are more central to the vec
                             // and that lower and rightmost spaces are more outter to the vec, but it serves its
                             // purpose for making a "random" position.
-                            if rng.random::<u32>() % 2 == 0 {open_spaces.push_back(Vector2(col_num, row_num));}
-                            else { open_spaces.push_front(Vector2(col_num, row_num)); }
-                        },
-                        GridPoint::Empty => {
                             if rng.random::<u32>() % 2 == 0 {open_spaces.push_back(Vector2(col_num, row_num));}
                             else { open_spaces.push_front(Vector2(col_num, row_num)); }
                         },
